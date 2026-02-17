@@ -1,0 +1,10 @@
+{
+  "name": "hub-afiliados-2026",
+  "version": "1.0.0",
+  "description": "Hub de Afiliados 2026 - Calendario de planificación y seguimiento de resultados",
+  "private": true,
+  "scripts": {
+    "dev": "npx serve public -l 3000",
+    "build": "echo 'Static site — nothing to build'"
+  }
+}

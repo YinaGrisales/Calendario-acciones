@@ -1,0 +1,898 @@
+/* ============================================================
+   Hub Afiliados 2026 — Standalone App (localStorage)
+   ============================================================ */
+
+// ── Formatters ──────────────────────────────────────────────
+const fmtCOP = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const fmtUSD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+const fmtNum = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+const MESES_LARGOS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const MESES_CORTOS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const TRM = 3700;
+const COMISION_POR_NP = 43575;
+
+// ── State ───────────────────────────────────────────────────
+const today = new Date();
+let currentMonth = today.getMonth();
+const currentYear = today.getFullYear();
+let currentLeverFilter = 'all';
+let currentAffiliateFilter = 'all';
+let currentTypeFilters = ['all'];
+let saveTimeout = null;
+
+let categories = {
+    comunidad:    { label: "Comunidad",    members: ["Vivi Garcia", "Orange", "Tati Uribe"] },
+    tradicional:  { label: "Tradicional",  members: ["Jairo García", "Camilo Barbosa"] },
+    alianza:      { label: "Alianza",      members: ["Dessiré", "Bold"] },
+    dropshipping: { label: "Dropshipping", members: [] }
+};
+let events = [];
+let results = [];
+let pendingAction = null;
+
+// ── LocalStorage Persistence ────────────────────────────────
+const STORAGE_KEY_PLANNING = 'hub2026_planning';
+const STORAGE_KEY_RESULTS  = 'hub2026_results';
+
+function loadFromStorage() {
+    try {
+        const planRaw = localStorage.getItem(STORAGE_KEY_PLANNING);
+        if (planRaw) {
+            const planData = JSON.parse(planRaw);
+            events = planData.events || [];
+            if (planData.categories) {
+                Object.keys(categories).forEach(k => {
+                    if (planData.categories[k]) categories[k] = planData.categories[k];
+                });
+            }
+        }
+        const resRaw = localStorage.getItem(STORAGE_KEY_RESULTS);
+        if (resRaw) {
+            results = JSON.parse(resRaw) || [];
+        }
+    } catch (err) {
+        showToast('Error al cargar datos locales', 'error');
+    }
+}
+
+function savePlanningToStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEY_PLANNING, JSON.stringify({ events, categories }));
+    } catch (err) {
+        showToast('Error al guardar planificación', 'error');
+    }
+}
+
+function saveResultsToStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEY_RESULTS, JSON.stringify(results));
+    } catch (err) {
+        showToast('Error al guardar resultados', 'error');
+    }
+}
+
+function debouncedSaveResults() {
+    const ind = document.getElementById('save-indicator');
+    if (ind) {
+        ind.innerText = "Sincronizando...";
+        ind.classList.remove('hidden');
+        ind.classList.remove('text-emerald-400');
+        ind.classList.add('text-indigo-400');
+    }
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+        saveResultsToStorage();
+        if (ind) {
+            ind.innerText = "✓ Sincronizado";
+            ind.classList.replace('text-indigo-400', 'text-emerald-400');
+            setTimeout(() => ind.classList.add('hidden'), 2500);
+        }
+    }, 800);
+}
+
+// ── Toast Notifications ─────────────────────────────────────
+function showToast(message, type) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const colors = {
+        success: 'bg-emerald-600 text-white',
+        error:   'bg-red-600 text-white',
+        info:    'bg-indigo-600 text-white',
+        warning: 'bg-amber-500 text-white'
+    };
+    const icons = {
+        success: '✓',
+        error:   '✕',
+        info:    'ℹ',
+        warning: '⚠'
+    };
+    const toast = document.createElement('div');
+    toast.className = `toast ${colors[type] || colors.info}`;
+    toast.innerHTML = `<span class="text-sm">${icons[type] || icons.info}</span><span>${message}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.add('removing');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+function unformat(val) {
+    if (typeof val === 'number') return val;
+    if (!val) return 0;
+    return parseInt(String(val).replace(/\D/g, "")) || 0;
+}
+
+function format(val) {
+    return fmtNum.format(unformat(val));
+}
+
+function getAffiliateLever(name) {
+    for (const [k, c] of Object.entries(categories)) {
+        if (c.members.includes(name)) return k;
+    }
+    return null;
+}
+
+function getISOWeek(d) {
+    const date = new Date(d);
+    date.setHours(0,0,0,0);
+    date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+    const week1 = new Date(date.getFullYear(), 0, 4);
+    return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+}
+
+function $(id) { return document.getElementById(id); }
+
+function safeSet(id, val) {
+    const el = $(id);
+    if (el) el.innerText = val;
+}
+
+function safeHTML(id, html) {
+    const el = $(id);
+    if (el) el.innerHTML = html;
+}
+
+// ── View Switching ──────────────────────────────────────────
+function switchView(view) {
+    const toggle = (id, hide) => { const el = $(id); if (el) el.classList.toggle('hidden', hide); };
+    const activate = (id, active) => { const el = $(id); if (el) el.classList.toggle('active', active); };
+    toggle('view-planning', view !== 'planning');
+    toggle('view-results', view !== 'results');
+    activate('tab-planning', view === 'planning');
+    activate('tab-results', view === 'results');
+}
+
+// ── Filters ─────────────────────────────────────────────────
+function updateFilters() {
+    const ls = $('filter-lever');
+    if (ls) {
+        ls.innerHTML = '<option value="all">Todas las palancas</option>';
+        Object.entries(categories).forEach(([k, c]) => {
+            ls.innerHTML += `<option value="${k}">${c.label}</option>`;
+        });
+        ls.value = currentLeverFilter;
+    }
+    const as = $('filter-affiliate');
+    if (as) {
+        const val = as.value;
+        as.innerHTML = '<option value="all">Todos los afiliados</option>';
+        Object.entries(categories).forEach(([k, c]) => {
+            if (currentLeverFilter !== 'all' && currentLeverFilter !== k) return;
+            const g = document.createElement('optgroup');
+            g.label = c.label;
+            c.members.forEach(m => {
+                const o = document.createElement('option');
+                o.value = m;
+                o.innerText = m;
+                g.appendChild(o);
+            });
+            as.appendChild(g);
+        });
+        as.value = val || 'all';
+    }
+    updateTypeFilterUI();
+}
+
+function applyFilter() {
+    currentLeverFilter = $('filter-lever').value;
+    currentAffiliateFilter = $('filter-affiliate').value;
+    updateFilters();
+    refreshViews();
+}
+
+function toggleTypeFilter(t) {
+    if (t === 'all') {
+        currentTypeFilters = ['all'];
+    } else {
+        currentTypeFilters = currentTypeFilters.filter(x => x !== 'all');
+        if (currentTypeFilters.includes(t)) {
+            currentTypeFilters = currentTypeFilters.filter(x => x !== t);
+        } else {
+            currentTypeFilters.push(t);
+        }
+        if (currentTypeFilters.length === 0) currentTypeFilters = ['all'];
+    }
+    updateTypeFilterUI();
+    refreshViews();
+}
+
+function updateTypeFilterUI() {
+    const types = ['all', 'convocatoria', 'clase', 'contenido', 'cierre'];
+    const activeStyles = {
+        all:           'bg-indigo-600 text-white border-indigo-600 shadow-sm font-black',
+        convocatoria:  'bg-blue-600 text-white border-blue-600 shadow-sm',
+        clase:         'bg-green-600 text-white border-green-600 shadow-sm',
+        contenido:     'bg-amber-500 text-white border-amber-500 shadow-sm',
+        cierre:        'bg-red-600 text-white border-red-600 shadow-sm'
+    };
+    const inactiveStyles = {
+        all:           'bg-white text-slate-400 border-slate-200 opacity-80',
+        convocatoria:  'bg-white text-slate-400 border-slate-200 opacity-80',
+        clase:         'bg-white text-slate-400 border-slate-200 opacity-80',
+        contenido:     'bg-white text-slate-400 border-slate-200 opacity-80',
+        cierre:        'bg-white text-slate-400 border-slate-200 opacity-80'
+    };
+    types.forEach(t => {
+        const btn = $(`btn-type-${t}`);
+        if (!btn) return;
+        const active = currentTypeFilters.includes(t);
+        const base = 'filter-chip ';
+        btn.className = base + (active ? activeStyles[t] : inactiveStyles[t]);
+    });
+}
+
+// ── Month Tabs ──────────────────────────────────────────────
+function renderTabs() {
+    const nav = $('month-tabs');
+    if (!nav) return;
+    nav.innerHTML = MESES_CORTOS.map((m, i) =>
+        `<button onclick="setViewMonth(${i})" class="px-3 py-1.5 rounded-xl text-[9px] font-bold transition-all ${
+            currentMonth === i
+                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-200'
+                : 'text-slate-400 hover:text-indigo-600 hover:bg-white'
+        }">${m}</button>`
+    ).join('');
+}
+
+function setViewMonth(i) {
+    currentMonth = i;
+    renderTabs();
+    refreshViews();
+}
+
+function changeMonth(step) {
+    currentMonth = (currentMonth + step + 12) % 12;
+    setViewMonth(currentMonth);
+}
+
+// ── Calendar Rendering ──────────────────────────────────────
+function renderCalendar() {
+    const body = $('calendar-body');
+    const title = $('calendar-title');
+    if (!body) return;
+
+    title.innerText = `${MESES_LARGOS[currentMonth]} ${currentYear}`;
+
+    const first = new Date(currentYear, currentMonth, 1);
+    const last  = new Date(currentYear, currentMonth + 1, 0);
+    let gap = (first.getDay() + 6) % 7;
+    let html = '';
+
+    for (let i = 0; i < gap; i++) {
+        if (i === 0) html += '<div class="week-num">-</div>';
+        html += '<div class="day-cell bg-slate-50/40"></div>';
+    }
+
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+    for (let d = 1; d <= last.getDate(); d++) {
+        const ds = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+
+        if ((gap + d - 1) % 7 === 0) {
+            html += `<div class="week-num">${getISOWeek(new Date(currentYear, currentMonth, d))}</div>`;
+        }
+
+        const dEvs = events.filter(e =>
+            ds >= e.date && ds <= (e.endDate || e.date) &&
+            (currentAffiliateFilter === 'all' || e.affiliate === currentAffiliateFilter) &&
+            (currentLeverFilter === 'all' || getAffiliateLever(e.affiliate) === currentLeverFilter) &&
+            (currentTypeFilters.includes('all') || currentTypeFilters.includes(e.type))
+        );
+
+        const icons = { clase: '🎓', contenido: '📒', cierre: '🚨', convocatoria: '🗓️' };
+        const evsHtml = dEvs.map(e =>
+            `<div class="event-badge type-${e.type}" onclick="event.stopPropagation(); manageAction('${e.id}')">${icons[e.type] || '🗓️'} ${e.affiliate}</div>`
+        ).join('');
+
+        const isToday = ds === todayStr;
+        const dow = new Date(currentYear, currentMonth, d).getDay();
+        const isWeekend = dow === 0 || dow === 6;
+
+        html += `<div class="day-cell relative cursor-pointer ${isToday ? 'ring-2 ring-indigo-400 ring-inset' : ''}" onclick="openAddModal('${ds}')">
+            <span class="text-[8px] font-black ${isToday ? 'bg-indigo-600 text-white rounded-full w-4 h-4 flex items-center justify-center' : isWeekend ? 'text-red-400' : 'text-slate-300'}">${d}</span>
+            <div class="mt-0.5">${evsHtml}</div>
+        </div>`;
+    }
+
+    body.innerHTML = html;
+}
+
+// ── Stats ───────────────────────────────────────────────────
+function updateStats() {
+    const pre = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
+    const gFil = events.filter(e =>
+        (currentAffiliateFilter === 'all' || e.affiliate === currentAffiliateFilter) &&
+        (currentLeverFilter === 'all' || getAffiliateLever(e.affiliate) === currentLeverFilter) &&
+        (currentTypeFilters.includes('all') || currentTypeFilters.includes(e.type))
+    );
+    const mEvs = gFil.filter(e =>
+        (e.date && e.date.startsWith(pre)) ||
+        (e.endDate && e.endDate.startsWith(pre))
+    );
+
+    safeSet('stat-clases', mEvs.filter(e => e.type === 'clase').length);
+    safeSet('stat-contenido', mEvs.filter(e => e.type === 'contenido').length);
+
+    const qs = [
+        {id:'Q1', m:[0,1,2], cl:0, ct:0},
+        {id:'Q2', m:[3,4,5], cl:0, ct:0},
+        {id:'Q3', m:[6,7,8], cl:0, ct:0},
+        {id:'Q4', m:[9,10,11], cl:0, ct:0}
+    ];
+    gFil.forEach(e => {
+        const m = new Date(e.date.replace(/-/g,'/')).getMonth();
+        const q = qs.find(q => q.m.includes(m));
+        if (q) {
+            if (e.type === 'clase') q.cl++;
+            if (e.type === 'contenido') q.ct++;
+        }
+    });
+
+    safeHTML('stats-quarters', qs.map(q =>
+        `<div class="border-r last:border-0 pr-1 flex flex-col items-center">
+            <p class="text-[7px] font-bold text-indigo-400 uppercase mb-0.5">${q.id}</p>
+            <span class="text-[10px] font-black text-slate-800">${q.cl}<span class="text-slate-300 font-medium">/</span>${q.ct}</span>
+            <span class="text-[6px] text-slate-300 font-medium">cl/cont</span>
+        </div>`
+    ).join(''));
+
+    const lCt = {};
+    Object.keys(categories).forEach(k => lCt[k] = new Set());
+    mEvs.forEach(e => { const l = getAffiliateLever(e.affiliate); if (l) lCt[l].add(e.affiliate); });
+
+    safeHTML('stats-levers', Object.entries(categories).map(([k, c]) => {
+        const dim = currentLeverFilter !== 'all' && currentLeverFilter !== k ? 'opacity-20 grayscale' : '';
+        return `<div class="flex flex-col items-center min-w-[40px] ${dim}">
+            <span class="text-[6px] font-semibold text-slate-400 uppercase tracking-tighter mb-0.5">${c.label.substring(0,5)}</span>
+            <span class="text-sm font-black text-indigo-600">${lCt[k].size}</span>
+            <span class="text-[5px] text-slate-300">activos</span>
+        </div>`;
+    }).join(''));
+}
+
+function updateResultStats() {
+    const mPre = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
+    const fil = results.filter(r =>
+        (currentAffiliateFilter === 'all' || r.name === currentAffiliateFilter) &&
+        (currentLeverFilter === 'all' || getAffiliateLever(r.name) === currentLeverFilter)
+    );
+    const mRes = fil.filter(r => r.date && r.date.startsWith(mPre));
+    const mNps = mRes.reduce((acc, r) => acc + (r.nps || 0), 0);
+    const mInv = mRes.reduce((acc, r) =>
+        acc + (r.fixed || 0) + (r.variable || 0) + (COMISION_POR_NP * (r.nps || 0)) + (r.pauta || 0), 0
+    );
+
+    safeSet('res-stat-nps', mNps);
+    safeSet('res-stat-inv', fmtCOP.format(mInv));
+
+    const qs = [
+        {id:'Q1', m:[0,1,2], n:0},
+        {id:'Q2', m:[3,4,5], n:0},
+        {id:'Q3', m:[6,7,8], n:0},
+        {id:'Q4', m:[9,10,11], n:0}
+    ];
+    fil.forEach(r => {
+        if (r.date) {
+            const m = new Date(r.date.replace(/-/g,'/')).getMonth();
+            const q = qs.find(q => q.m.includes(m));
+            if (q) q.n += (r.nps || 0);
+        }
+    });
+
+    safeHTML('res-stats-quarters', qs.map(q =>
+        `<div class="border-r last:border-0 pr-1 flex flex-col items-center">
+            <p class="text-[7px] font-bold text-indigo-400 uppercase">${q.id}</p>
+            <span class="text-[10px] font-bold text-slate-800">${q.n}</span>
+            <span class="text-[5px] text-slate-300">NPs</span>
+        </div>`
+    ).join(''));
+
+    const lNps = {};
+    Object.keys(categories).forEach(k => lNps[k] = 0);
+    fil.forEach(r => { const l = getAffiliateLever(r.name); if (l) lNps[l] += (r.nps || 0); });
+
+    safeHTML('res-stats-levers', Object.entries(categories).map(([k, c]) => {
+        const dim = currentLeverFilter !== 'all' && currentLeverFilter !== k ? 'opacity-20 grayscale' : '';
+        return `<div class="flex flex-col items-center min-w-[40px] ${dim}">
+            <span class="text-[6px] font-semibold text-slate-400 uppercase tracking-tighter">${c.label.substring(0,5)}</span>
+            <span class="text-sm font-black text-indigo-600">${lNps[k]}</span>
+            <span class="text-[5px] text-slate-300">NPs</span>
+        </div>`;
+    }).join(''));
+}
+
+// ── Results Table ───────────────────────────────────────────
+function handleNumberInput(el, id, field) {
+    const rawValue = unformat(el.value);
+    el.value = format(rawValue);
+    const row = results.find(r => r.id === id);
+    if (row) {
+        row[field] = rawValue;
+        updateCalculatedCells(id);
+        updateResultStats();
+        debouncedSaveResults();
+    }
+}
+
+function updateCalculatedCells(id) {
+    const row = results.find(r => r.id === id);
+    if (!row) return;
+    const comis = COMISION_POR_NP * (row.nps || 0);
+    const total = (row.fixed || 0) + (row.variable || 0) + comis + (row.pauta || 0);
+    const cac = row.nps > 0 ? Math.round(total / row.nps) : 0;
+
+    const rowEl = document.querySelector(`[data-row-id="${id}"]`);
+    if (!rowEl) return;
+
+    const s = (cls, txt) => { const e = rowEl.querySelector(cls); if (e) e.innerText = txt; };
+    s('.cvr-ast-wa', row.wa_group > 0 ? (row.attendees / row.wa_group * 100).toFixed(1) + '%' : '0%');
+    s('.cvr-wa-tr', row.wa_group > 0 ? (row.trials / row.wa_group * 100).toFixed(1) + '%' : '0%');
+    s('.cvr-np-tr', row.trials > 0 ? (row.nps / row.trials * 100).toFixed(1) + '%' : '0%');
+    s('.cell-comis', fmtCOP.format(comis));
+    s('.cell-total', fmtCOP.format(total));
+    s('.cell-cac-cop', fmtCOP.format(cac));
+    s('.cell-cac-usd', fmtUSD.format(cac / TRM));
+}
+
+function renderResultsTable() {
+    const body = $('results-table-body');
+    if (!body) return;
+
+    body.innerHTML = results.map(row => {
+        const comis = COMISION_POR_NP * (row.nps || 0);
+        const total = (row.fixed || 0) + (row.variable || 0) + comis + (row.pauta || 0);
+        const cac = row.nps > 0 ? Math.round(total / row.nps) : 0;
+
+        return `<tr data-row-id="${row.id}" class="group">
+            <td class="pl-2 py-1.5 text-left">
+                <input type="text" value="${escapeHTML(row.name)}" onchange="updateResultValue(${row.id}, 'name', this.value)"
+                    class="mb-0.5 font-bold text-slate-700 border-none bg-transparent p-0 w-full focus:ring-0 uppercase text-[0.68rem]"
+                    placeholder="Nombre...">
+                <div class="flex items-center gap-1">
+                    <input type="date" value="${row.date}" onchange="updateResultValue(${row.id}, 'date', this.value)"
+                        class="text-[7.5px] text-slate-300 font-semibold border-none bg-transparent p-0 w-auto">
+                    <span class="text-[6.5px] px-1.5 py-0.5 rounded-md bg-slate-50 text-slate-300 font-bold italic">${escapeHTML(row.type || 'Clase')}</span>
+                </div>
+            </td>
+            <td><input type="text" value="${format(row.wa_group)}" oninput="handleNumberInput(this, ${row.id}, 'wa_group')" class="w-10 text-center"></td>
+            <td><input type="text" value="${format(row.attendees)}" oninput="handleNumberInput(this, ${row.id}, 'attendees')" class="w-10 text-center"></td>
+            <td class="formula-col opacity-60 text-[7px] cvr-ast-wa">${row.wa_group > 0 ? (row.attendees/row.wa_group*100).toFixed(1)+'%' : '0%'}</td>
+            <td><input type="text" value="${format(row.trials)}" oninput="handleNumberInput(this, ${row.id}, 'trials')" class="w-10 text-center"></td>
+            <td class="formula-col opacity-60 text-[7px] cvr-wa-tr">${row.wa_group > 0 ? (row.trials/row.wa_group*100).toFixed(1)+'%' : '0%'}</td>
+            <td><input type="text" value="${format(row.nps)}" oninput="handleNumberInput(this, ${row.id}, 'nps')" class="w-10 text-indigo-600 font-bold text-center"></td>
+            <td class="formula-col opacity-60 text-[7px] cvr-np-tr">${row.trials > 0 ? (row.nps/row.trials*100).toFixed(1)+'%' : '0%'}</td>
+            <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.fixed)}" oninput="handleNumberInput(this, ${row.id}, 'fixed')" class="w-14 input-money"></div></td>
+            <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.variable)}" oninput="handleNumberInput(this, ${row.id}, 'variable')" class="w-14 input-money"></div></td>
+            <td class="money-col text-[7px] cell-comis">${fmtCOP.format(comis)}</td>
+            <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.pauta)}" oninput="handleNumberInput(this, ${row.id}, 'pauta')" class="w-14 input-money"></div></td>
+            <td class="total-col text-[7px] cell-total">${fmtCOP.format(total)}</td>
+            <td class="formula-col text-[7px] cell-cac-cop">${fmtCOP.format(cac)}</td>
+            <td class="formula-col text-indigo-600 text-[7px] cell-cac-usd">${fmtUSD.format(cac / TRM)}</td>
+            <td>
+                <button onclick="deleteResultRow(${row.id})" class="text-slate-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 text-sm font-bold">×</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function escapeHTML(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+
+function addResultRow() {
+    results.unshift({
+        id: Date.now(),
+        name: '',
+        date: new Date().toISOString().split('T')[0],
+        type: 'Clase',
+        wa_group: 0, attendees: 0, trials: 0, nps: 0,
+        fixed: 0, variable: 0, pauta: 0
+    });
+    renderResultsTable();
+    updateResultStats();
+    debouncedSaveResults();
+    showToast('Fila manual agregada', 'info');
+}
+
+function deleteResultRow(id) {
+    results = results.filter(r => r.id !== id);
+    renderResultsTable();
+    updateResultStats();
+    debouncedSaveResults();
+}
+
+function updateResultValue(id, field, val) {
+    const r = results.find(row => row.id === id);
+    if (!r) return;
+    if (field === 'name' || field === 'date' || field === 'type') {
+        r[field] = val;
+        renderResultsTable();
+    } else {
+        r[field] = unformat(val);
+        updateCalculatedCells(id);
+    }
+    updateResultStats();
+    debouncedSaveResults();
+}
+
+// ── Event CRUD ──────────────────────────────────────────────
+function openAddModal(d) {
+    pendingAction = null;
+    const sel = $('select-affiliate');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Selecciona miembro...</option>';
+    Object.entries(categories).forEach(([k, c]) => {
+        const g = document.createElement('optgroup');
+        g.label = c.label;
+        c.members.forEach(m => {
+            const o = document.createElement('option');
+            o.value = m;
+            o.innerText = m;
+            g.appendChild(o);
+        });
+        sel.appendChild(g);
+    });
+    $('input-start-date').value = d;
+    $('input-end-date').value = d;
+    $('modal-event-title').innerText = 'Nueva acción';
+    toggleEndDateField();
+    openModal('modal-event');
+}
+
+function manageAction(id) {
+    pendingAction = events.find(e => String(e.id) === String(id));
+    if (!pendingAction) return;
+    const ct = $('choice-title');
+    if (ct) ct.innerText = pendingAction.affiliate;
+    openModal('modal-action-choice');
+}
+
+function openEditEvent() {
+    closeModal('modal-action-choice');
+    const t = pendingAction;
+    if (!t) return;
+
+    const sel = $('select-affiliate');
+    sel.innerHTML = '<option value="">Selecciona miembro...</option>';
+    Object.entries(categories).forEach(([k, c]) => {
+        const g = document.createElement('optgroup');
+        g.label = c.label;
+        c.members.forEach(m => {
+            const o = document.createElement('option');
+            o.value = m;
+            o.innerText = m;
+            g.appendChild(o);
+        });
+        sel.appendChild(g);
+    });
+
+    sel.value = t.affiliate;
+    $('select-type').value = t.type;
+    $('input-start-date').value = t.date;
+    $('input-end-date').value = t.endDate || t.date;
+    $('modal-event-title').innerText = 'Modificar acción';
+    toggleEndDateField();
+    openModal('modal-event');
+}
+
+function saveEvent() {
+    const aff = $('select-affiliate').value;
+    const typ = $('select-type').value;
+    const sd  = $('input-start-date').value;
+    const ed  = $('input-end-date').value;
+    if (!aff || !sd) {
+        showToast('Completa los campos obligatorios', 'warning');
+        return;
+    }
+
+    if (pendingAction) {
+        const idx = events.findIndex(e => e.id === pendingAction.id);
+        if (idx !== -1) {
+            events[idx] = {
+                ...pendingAction,
+                affiliate: aff, type: typ, date: sd,
+                endDate: typ === 'convocatoria' ? ed : sd
+            };
+        }
+        showToast('Acción actualizada', 'success');
+    } else {
+        events.push({
+            id: Date.now(),
+            affiliate: aff, type: typ, date: sd,
+            endDate: typ === 'convocatoria' ? ed : sd
+        });
+        showToast('Acción creada', 'success');
+    }
+
+    closeModal('modal-event');
+    refreshViews();
+    savePlanningToStorage();
+}
+
+function executeDeleteEvent() {
+    if (!pendingAction) return;
+    events = events.filter(e => e.id !== pendingAction.id);
+    closeModal('modal-action-choice');
+    refreshViews();
+    savePlanningToStorage();
+    showToast('Acción eliminada', 'info');
+}
+
+function toggleEndDateField() {
+    const typeSel = $('select-type');
+    const endContainer = $('end-date-container-add');
+    if (typeSel && endContainer) {
+        endContainer.classList.toggle('hidden', typeSel.value !== 'convocatoria');
+    }
+}
+
+// ── Link Modal ──────────────────────────────────────────────
+function openLinkModal() {
+    const list = $('calendar-actions-list');
+    if (!list) return;
+
+    const sorted = [...events]
+        .filter(e => e.type === 'clase' || e.type === 'contenido')
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+    const existingKeys = results.map(r => `${r.name}_${r.date}_${(r.type || '').toLowerCase()}`);
+
+    list.innerHTML = sorted.map(e => {
+        const isLinked = existingKeys.includes(`${e.affiliate}_${e.date}_${e.type.toLowerCase()}`);
+        const icon = e.type === 'clase' ? '🎓' : '📒';
+        return `<div onclick="${isLinked ? '' : `linkEventToResults('${e.id}')`}"
+                     class="p-3 rounded-xl flex justify-between items-center group transition-all border
+                     ${isLinked
+                         ? 'opacity-40 grayscale cursor-not-allowed bg-slate-50 border-slate-100'
+                         : 'hover:bg-indigo-600 hover:text-white hover:border-indigo-600 cursor-pointer bg-white border-slate-200 hover:shadow-md'}">
+                    <div>
+                        <span class="font-bold text-[10px] uppercase">${escapeHTML(e.affiliate)}</span>
+                        <p class="text-[7px] text-slate-400 group-hover:text-indigo-200 mt-0.5">${e.date}</p>
+                    </div>
+                    <span class="text-[8px] font-bold px-2 py-1 rounded-lg bg-white text-indigo-600 self-center shadow-sm">${icon} ${e.type}</span>
+                </div>`;
+    }).join('') || '<p class="text-center py-8 text-slate-300 font-medium text-[9px] uppercase tracking-widest italic">Sin acciones vinculables</p>';
+
+    openModal('modal-link');
+}
+
+function linkEventToResults(id) {
+    const e = events.find(ev => String(ev.id) === String(id));
+    if (!e) return;
+    results.unshift({
+        id: Date.now(),
+        name: e.affiliate,
+        date: e.date,
+        type: e.type.charAt(0).toUpperCase() + e.type.slice(1),
+        wa_group: 0, attendees: 0, trials: 0, nps: 0,
+        fixed: 0, variable: 0, pauta: 0
+    });
+    renderResultsTable();
+    updateResultStats();
+    closeModal('modal-link');
+    debouncedSaveResults();
+    showToast(`${e.affiliate} vinculado a resultados`, 'success');
+}
+
+// ── Settings ────────────────────────────────────────────────
+function openSettings() {
+    const cont = $('settings-lists');
+    if (!cont) return;
+    cont.innerHTML = Object.entries(categories).map(([k, c]) =>
+        `<div>
+            <label class="text-[8px] font-bold text-indigo-500 block mb-1.5 uppercase tracking-wider">${c.label}</label>
+            <textarea id="area-${k}" class="w-full border border-slate-200 rounded-xl p-3 text-[11px] h-24 bg-slate-50 outline-none font-medium text-slate-600 focus:bg-white focus:border-indigo-300 shadow-inner transition-colors resize-none" placeholder="Un miembro por línea...">${c.members.join('\n')}</textarea>
+        </div>`
+    ).join('');
+    openModal('modal-settings');
+}
+
+function saveCategories() {
+    Object.keys(categories).forEach(k => {
+        const area = $(`area-${k}`);
+        if (area) {
+            categories[k].members = area.value.split('\n').map(m => m.trim()).filter(m => m !== '');
+        }
+    });
+    updateFilters();
+    closeModal('modal-settings');
+    refreshViews();
+    savePlanningToStorage();
+    showToast('Miembros actualizados', 'success');
+}
+
+// ── Modals ──────────────────────────────────────────────────
+function openModal(id) {
+    const el = $(id);
+    if (!el) return;
+    el.classList.remove('hidden');
+    el.classList.add('flex');
+}
+
+function closeModal(id) {
+    const el = $(id);
+    if (!el) return;
+    el.classList.remove('flex');
+    el.classList.add('hidden');
+}
+
+// Close modals with Escape key
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const modals = ['modal-event', 'modal-link', 'modal-settings', 'modal-action-choice', 'modal-backup'];
+        modals.forEach(id => closeModal(id));
+    }
+});
+
+// Close modals when clicking backdrop
+document.addEventListener('click', (e) => {
+    const modals = ['modal-event', 'modal-link', 'modal-settings', 'modal-action-choice', 'modal-backup'];
+    modals.forEach(id => {
+        const el = $(id);
+        if (el && e.target === el) closeModal(id);
+    });
+});
+
+// ── Backup / Restore ────────────────────────────────────────
+function openBackupModal() {
+    openModal('modal-backup');
+}
+
+function exportJSON() {
+    const data = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        planning: { events, categories },
+        results
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hub_afiliados_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Respaldo descargado', 'success');
+}
+
+function importJSON(evt) {
+    const file = evt.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (data.planning) {
+                events = data.planning.events || [];
+                if (data.planning.categories) {
+                    Object.keys(categories).forEach(k => {
+                        if (data.planning.categories[k]) categories[k] = data.planning.categories[k];
+                    });
+                }
+            }
+            if (data.results) results = data.results;
+
+            savePlanningToStorage();
+            saveResultsToStorage();
+            updateFilters();
+            renderTabs();
+            refreshViews();
+            closeModal('modal-backup');
+            showToast('Datos restaurados correctamente', 'success');
+        } catch (err) {
+            showToast('Error: archivo JSON inválido', 'error');
+        }
+    };
+    reader.readAsText(file);
+    evt.target.value = '';
+}
+
+function clearAllData() {
+    if (!confirm('¿Estás seguro de que quieres borrar TODOS los datos? Esta acción no se puede deshacer.')) return;
+    events = [];
+    results = [];
+    localStorage.removeItem(STORAGE_KEY_PLANNING);
+    localStorage.removeItem(STORAGE_KEY_RESULTS);
+    updateFilters();
+    renderTabs();
+    refreshViews();
+    closeModal('modal-backup');
+    showToast('Todos los datos eliminados', 'warning');
+}
+
+// ── CSV Export ──────────────────────────────────────────────
+function exportCSV() {
+    if (results.length === 0) {
+        showToast('No hay datos para exportar', 'warning');
+        return;
+    }
+
+    const headers = ['Afiliado','Fecha','Tipo','WA_Group','Asistentes','Trials','NPs','Fijo','Variable','Comisiones','Pauta','TOTAL_INV','CAC_COP','CAC_USD'];
+    const rows = results.map(r => {
+        const comis = COMISION_POR_NP * (r.nps || 0);
+        const total = (r.fixed || 0) + (r.variable || 0) + comis + (r.pauta || 0);
+        const cacCop = r.nps > 0 ? Math.round(total / r.nps) : 0;
+        const cacUsd = r.nps > 0 ? (total / r.nps / TRM).toFixed(2) : '0';
+        return [
+            r.name, r.date, r.type,
+            r.wa_group || 0, r.attendees || 0, r.trials || 0, r.nps || 0,
+            r.fixed || 0, r.variable || 0, comis, r.pauta || 0,
+            total, cacCop, cacUsd
+        ];
+    });
+
+    const csvContent = [headers, ...rows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte_resultados_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('CSV exportado', 'success');
+}
+
+// ── Loading ─────────────────────────────────────────────────
+function showLoading(show) {
+    const el = $('loading-overlay');
+    if (el) el.classList.toggle('hidden', !show);
+}
+
+// ── Refresh ─────────────────────────────────────────────────
+function refreshViews() {
+    renderCalendar();
+    renderResultsTable();
+    updateStats();
+    updateResultStats();
+}
+
+// ── Init ────────────────────────────────────────────────────
+function init() {
+    showLoading(true);
+    loadFromStorage();
+    updateFilters();
+    renderTabs();
+    refreshViews();
+
+    setTimeout(() => {
+        showLoading(false);
+        showToast('Hub cargado correctamente', 'success');
+    }, 300);
+}
+
+window.onload = init;

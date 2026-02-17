@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hub Afiliados 2026</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>📊</text></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+                animation: {
+                    'fade-in': 'fadeIn 0.2s ease-out',
+                    'slide-up': 'slideUp 0.25s ease-out',
+                    'toast-in': 'toastIn 0.35s ease-out',
+                    'toast-out': 'toastOut 0.3s ease-in forwards',
+                }
+            }
+        }
+    }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes toastIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(100%); } }
+
+        body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
+
+        /* Calendar */
+        .calendar-grid { display: grid; grid-template-columns: 34px repeat(7, 1fr); gap: 1px; background-color: #e2e8f0; }
+        .day-cell {
+            min-height: 62px; background-color: white; padding: 3px;
+            transition: background 0.15s ease, box-shadow 0.15s ease;
+        }
+        .day-cell:hover { background-color: #f8faff; box-shadow: inset 0 0 0 1px rgba(99,102,241,0.15); }
+        .week-num {
+            background-color: #f8fafc; display: flex; align-items: center; justify-content: center;
+            font-size: 7px; font-weight: 800; color: #cbd5e1;
+        }
+
+        .event-badge {
+            font-size: 7px; padding: 1.5px 3px; border-radius: 3px; margin-bottom: 1.5px;
+            cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            font-weight: 600; border-left: 2.5px solid transparent;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+        .event-badge:hover { transform: scale(1.03); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .type-clase { background-color: #f0fdf4; color: #166534; border-left-color: #16a34a; }
+        .type-contenido { background-color: #fffbeb; color: #854d0e; border-left-color: #d97706; }
+        .type-convocatoria { background-color: #eff6ff; color: #1e40af; border-left-color: #3b82f6; }
+        .type-cierre { background-color: #fef2f2; color: #991b1b; border-left-color: #ef4444; }
+
+        /* Results table */
+        .table-container { overflow-x: auto; border-radius: 0.75rem; border: 1px solid #e2e8f0; background: white; }
+        .results-table th {
+            background-color: #f8fafc; font-size: 0.58rem; padding: 0.5rem 0.25rem;
+            color: #64748b; font-weight: 700; border-bottom: 1px solid #f1f5f9;
+            text-transform: uppercase; letter-spacing: 0.03em;
+        }
+        .results-table td { padding: 0.3rem 0.25rem; font-size: 0.68rem; border-bottom: 1px solid #f1f5f9; font-weight: 500; }
+        .results-table tbody tr { transition: background 0.15s ease; }
+        .results-table tbody tr:hover { background-color: #fafaff; }
+        .formula-col { background-color: #f5f3ff; color: #4f46e5; font-weight: 700; }
+        .total-col { background-color: #f0fdf4; color: #166534; font-weight: 800; }
+        .money-col { color: #059669; font-weight: 700; }
+
+        /* Inputs */
+        .floating-label-container { position: relative; margin-top: 12px; }
+        .floating-label {
+            position: absolute; top: -7px; left: 10px; background: white; padding: 0 5px;
+            font-size: 8px; font-weight: 700; color: #6366f1; z-index: 30; line-height: 1;
+            letter-spacing: 0.04em; text-transform: uppercase;
+        }
+        .currency-input-wrapper { position: relative; display: flex; align-items: center; }
+        .currency-symbol { position: absolute; left: 5px; font-size: 0.62rem; color: #94a3b8; font-weight: 700; pointer-events: none; z-index: 20; }
+
+        select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 6px center; background-repeat: no-repeat; background-size: 14px; padding-right: 24px; }
+        input[type="text"], input[type="date"], select {
+            background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.5rem;
+            padding: 0.4rem 0.55rem; font-size: 0.72rem; outline: none; width: 100%;
+            position: relative; z-index: 10; transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .input-money { padding-left: 0.9rem !important; text-align: right; font-weight: bold; }
+        input:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+
+        /* Nav */
+        .nav-tab {
+            color: #94a3b8; border-bottom: 2px solid transparent; cursor: pointer;
+            padding-bottom: 2px; transition: all 0.2s ease; font-weight: 700; font-size: 0.78rem;
+        }
+        .nav-tab:hover { color: #6366f1; }
+        .nav-tab.active { border-bottom-color: #4f46e5; color: #1e1b4b; }
+
+        .filter-chip {
+            transition: all 0.15s ease; cursor: pointer; user-select: none;
+            font-size: 0.62rem; padding: 3px 8px; border-radius: 6px;
+            font-weight: 600; border: 1px solid #e2e8f0;
+        }
+        .filter-chip:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.06); }
+
+        /* Scrollbar */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Toast */
+        .toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+        .toast {
+            padding: 10px 16px; border-radius: 10px; font-size: 0.72rem; font-weight: 600;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12); animation: toastIn 0.35s ease-out;
+            display: flex; align-items: center; gap: 8px; max-width: 320px;
+        }
+        .toast.removing { animation: toastOut 0.3s ease-in forwards; }
+
+        /* Modal backdrop animation */
+        .modal-backdrop { transition: opacity 0.2s ease; }
+        .modal-backdrop.showing { opacity: 1; }
+        .modal-content { animation: slideUp 0.25s ease-out; }
+
+        /* Stat card glow */
+        .stat-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+        .stat-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+
+        /* Button hover */
+        .btn-primary { transition: all 0.15s ease; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(79,70,229,0.3); }
+        .btn-primary:active { transform: translateY(0); }
+    </style>
+</head>
+<body class="bg-slate-50 p-2 md:p-4">
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-[500] flex items-center justify-center hidden">
+        <div class="flex flex-col items-center gap-3">
+            <div class="relative">
+                <div class="w-10 h-10 rounded-full border-[3px] border-slate-100"></div>
+                <div class="absolute inset-0 w-10 h-10 rounded-full border-[3px] border-transparent border-t-indigo-600 animate-spin"></div>
+            </div>
+            <p class="font-bold text-[9px] uppercase text-indigo-600 tracking-[0.2em]">Cargando datos...</p>
+        </div>
+    </div>
+
+    <!-- MAIN CONTAINER -->
+    <div class="max-w-[1600px] mx-auto">
+
+        <!-- HEADER -->
+        <header class="bg-white rounded-2xl p-4 md:p-5 shadow-sm border border-slate-100 mb-3">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-md shadow-indigo-200">
+                            <span class="text-white text-sm">📊</span>
+                        </div>
+                        <div>
+                            <h1 class="text-xl font-black text-slate-900 leading-none tracking-tight">Hub <span class="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">2026</span></h1>
+                            <p class="text-[8px] text-slate-400 font-medium mt-0.5 tracking-wide">Panel de gestión de afiliados</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6 mt-4">
+                        <button onclick="switchView('planning')" id="tab-planning" class="nav-tab active">Planificación</button>
+                        <button onclick="switchView('results')" id="tab-results" class="nav-tab">Resultados</button>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2 justify-start lg:justify-end flex-1 w-full">
+                    <div class="floating-label-container min-w-[130px]">
+                        <span class="floating-label">Palanca</span>
+                        <select id="filter-lever" onchange="applyFilter()" class="font-semibold text-slate-600 cursor-pointer"></select>
+                    </div>
+                    <div class="floating-label-container min-w-[170px]">
+                        <span class="floating-label">Afiliado</span>
+                        <select id="filter-affiliate" onchange="applyFilter()" class="font-semibold text-slate-600 cursor-pointer"></select>
+                    </div>
+                    <div class="flex gap-1.5 mt-2">
+                        <button onclick="openSettings()" class="bg-slate-50 text-slate-400 p-2 rounded-xl hover:text-indigo-600 hover:bg-indigo-50 border border-slate-100 transition-all" title="Configuración">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        </button>
+                        <button onclick="openBackupModal()" class="bg-slate-50 text-slate-400 p-2 rounded-xl hover:text-emerald-600 hover:bg-emerald-50 border border-slate-100 transition-all" title="Respaldo de datos">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- VIEW: PLANIFICACIÓN -->
+        <section id="view-planning" class="space-y-3">
+            <!-- Type filters -->
+            <div class="flex flex-wrap items-center gap-1.5 bg-white p-2.5 rounded-2xl border border-slate-100 shadow-sm">
+                <span class="text-[8px] font-bold text-slate-300 mr-1 pr-2 border-r uppercase tracking-wider">Tipo</span>
+                <div id="filter-type-container" class="flex flex-wrap gap-1.5">
+                    <button onclick="toggleTypeFilter('all')" id="btn-type-all" class="filter-chip bg-indigo-600 text-white border-indigo-600 font-black uppercase">Todos</button>
+                    <button onclick="toggleTypeFilter('convocatoria')" id="btn-type-convocatoria" class="filter-chip border-blue-100 text-blue-700 bg-blue-50">🗓️ Convocatoria</button>
+                    <button onclick="toggleTypeFilter('clase')" id="btn-type-clase" class="filter-chip border-green-100 text-green-700 bg-green-50">🎓 Clase</button>
+                    <button onclick="toggleTypeFilter('contenido')" id="btn-type-contenido" class="filter-chip border-amber-100 text-amber-700 bg-amber-50">📒 Contenido</button>
+                    <button onclick="toggleTypeFilter('cierre')" id="btn-type-cierre" class="filter-chip border-red-100 text-red-700 bg-red-50">🚨 Cierre</button>
+                </div>
+            </div>
+
+            <!-- Month tabs -->
+            <nav class="flex gap-1 overflow-x-auto pb-1 scrollbar-hide" id="month-tabs"></nav>
+
+            <!-- Stats row -->
+            <div class="grid grid-cols-4 md:grid-cols-12 gap-2">
+                <div class="md:col-span-3 grid grid-cols-2 gap-2">
+                    <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
+                        <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Clases</span>
+                        <span class="text-2xl font-black text-green-600 mt-0.5" id="stat-clases">0</span>
+                    </div>
+                    <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
+                        <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Contenido</span>
+                        <span class="text-2xl font-black text-amber-600 mt-0.5" id="stat-contenido">0</span>
+                    </div>
+                </div>
+                <div class="md:col-span-6 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                    <div class="grid grid-cols-4 gap-1 text-center" id="stats-quarters"></div>
+                </div>
+                <div class="md:col-span-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div id="stats-levers" class="flex gap-2 overflow-x-auto scrollbar-hide px-1 justify-center"></div>
+                </div>
+            </div>
+
+            <!-- Calendar month nav -->
+            <div class="flex justify-between items-center px-1">
+                <button onclick="changeMonth(-1)" class="text-slate-300 hover:text-indigo-600 font-bold px-3 py-1 text-lg transition-colors rounded-lg hover:bg-indigo-50">❮</button>
+                <h2 class="text-sm font-black text-slate-700 uppercase tracking-wide" id="calendar-title">Mes</h2>
+                <button onclick="changeMonth(1)" class="text-slate-300 hover:text-indigo-600 font-bold px-3 py-1 text-lg transition-colors rounded-lg hover:bg-indigo-50">❯</button>
+            </div>
+
+            <!-- Calendar grid -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="calendar-grid bg-slate-50 border-b border-slate-100">
+                    <div class="py-2 text-center text-[7px] font-bold text-slate-400 uppercase">W</div>
+                    <div class="py-2 text-center text-[8px] font-bold text-slate-500 uppercase tracking-tighter">Lun</div>
+                    <div class="py-2 text-center text-[8px] font-bold text-slate-500 uppercase tracking-tighter">Mar</div>
+                    <div class="py-2 text-center text-[8px] font-bold text-slate-500 uppercase tracking-tighter">Mié</div>
+                    <div class="py-2 text-center text-[8px] font-bold text-slate-500 uppercase tracking-tighter">Jue</div>
+                    <div class="py-2 text-center text-[8px] font-bold text-slate-500 uppercase tracking-tighter">Vie</div>
+                    <div class="py-2 text-center text-[8px] font-bold text-slate-500 uppercase tracking-tighter">Sáb</div>
+                    <div class="py-2 text-center text-[8px] font-bold text-slate-500 uppercase tracking-tighter">Dom</div>
+                </div>
+                <div class="calendar-grid" id="calendar-body"></div>
+            </div>
+        </section>
+
+        <!-- VIEW: RESULTADOS -->
+        <section id="view-results" class="hidden space-y-3">
+            <!-- Result stats -->
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
+                <div class="md:col-span-3 grid grid-cols-2 gap-2">
+                    <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
+                        <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">NPs Mes</span>
+                        <span class="text-2xl font-black text-indigo-600 mt-0.5" id="res-stat-nps">0</span>
+                    </div>
+                    <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
+                        <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Inversión</span>
+                        <span class="text-[10px] font-black text-slate-700 mt-1" id="res-stat-inv">$0</span>
+                    </div>
+                </div>
+                <div class="md:col-span-5 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                    <div class="grid grid-cols-4 gap-1 text-center mt-1" id="res-stats-quarters"></div>
+                </div>
+                <div class="md:col-span-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                    <div id="res-stats-levers" class="flex gap-1.5 overflow-x-auto scrollbar-hide px-1 justify-center mt-1"></div>
+                </div>
+            </div>
+
+            <!-- Results toolbar -->
+            <div class="flex flex-wrap justify-between items-center bg-white p-3 rounded-2xl shadow-sm border border-slate-100 gap-2">
+                <h2 class="text-[10px] font-black text-slate-900 uppercase tracking-wide">Seguimiento de conversiones</h2>
+                <div class="flex gap-1.5 flex-wrap">
+                    <button onclick="exportCSV()" class="btn-primary bg-emerald-600 text-white px-4 py-1.5 rounded-xl font-bold text-[9px] uppercase shadow-sm flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        CSV
+                    </button>
+                    <button onclick="openLinkModal()" class="btn-primary bg-indigo-600 text-white px-4 py-1.5 rounded-xl font-bold text-[9px] uppercase shadow-sm flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                        Vincular
+                    </button>
+                    <button onclick="addResultRow()" class="bg-white border border-slate-200 text-slate-600 px-4 py-1.5 rounded-xl font-bold text-[9px] uppercase shadow-sm hover:bg-slate-50 transition-colors flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Manual
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results table -->
+            <div class="table-container shadow-sm overflow-visible">
+                <table class="results-table w-full border-collapse">
+                    <thead>
+                        <tr>
+                            <th class="text-left pl-3 w-[145px]">Afiliado / Fecha</th>
+                            <th>WA</th><th>Asist.</th><th class="formula-col">Ast/WA</th>
+                            <th>Tr.</th><th class="formula-col">WA/Tr</th>
+                            <th>NPs</th><th class="formula-col">NP/Tr</th>
+                            <th>Fijo</th><th>Var.</th><th class="money-col">Comis.</th>
+                            <th>Pauta</th><th class="total-col">TOTAL</th>
+                            <th class="formula-col">CAC COP</th><th class="formula-col">CAC USD</th><th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-table-body"></tbody>
+                </table>
+            </div>
+
+            <!-- Footer bar -->
+            <div class="bg-gradient-to-r from-slate-900 to-slate-800 p-3 rounded-2xl text-white flex justify-between items-center shadow-lg">
+                <span class="text-[8px] text-slate-400 font-medium uppercase tracking-wider">Guardado automático · localStorage · TRM: $3.700</span>
+                <span class="text-[8px] font-bold text-emerald-400 uppercase hidden" id="save-indicator">✓ Sincronizado</span>
+            </div>
+        </section>
+    </div>
+
+    <!-- MODAL: NUEVO/EDITAR EVENTO -->
+    <div id="modal-event" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[500] p-4 modal-backdrop">
+        <div class="modal-content bg-white w-full max-w-[260px] rounded-2xl p-6 shadow-2xl border border-slate-100">
+            <h2 id="modal-event-title" class="font-black text-indigo-600 text-[11px] text-center uppercase tracking-[0.15em] mb-5">Nueva acción</h2>
+            <div class="space-y-4">
+                <div class="floating-label-container"><span class="floating-label">Miembro</span><select id="select-affiliate" class="font-bold text-slate-700"></select></div>
+                <div class="floating-label-container"><span class="floating-label">Tipo</span>
+                    <select id="select-type" onchange="toggleEndDateField()" class="font-bold text-slate-700">
+                        <option value="convocatoria">🗓️ Convocatoria</option>
+                        <option value="clase">🎓 Clase</option>
+                        <option value="contenido">📒 Contenido</option>
+                        <option value="cierre">🚨 Cierre</option>
+                    </select>
+                </div>
+                <div class="floating-label-container"><span class="floating-label">Inicio</span><input type="date" id="input-start-date" class="font-bold text-slate-700"></div>
+                <div id="end-date-container-add" class="hidden floating-label-container"><span class="floating-label">Fin</span><input type="date" id="input-end-date" class="font-bold text-slate-700"></div>
+            </div>
+            <button onclick="saveEvent()" class="btn-primary w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-3 rounded-xl font-black text-[10px] mt-6 uppercase tracking-wider shadow-lg">Confirmar</button>
+            <button onclick="closeModal('modal-event')" class="w-full text-slate-300 hover:text-slate-500 font-bold text-[9px] mt-2 uppercase tracking-wider transition-colors">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- MODAL: VINCULAR -->
+    <div id="modal-link" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[510] p-4 modal-backdrop">
+        <div class="modal-content bg-white w-full max-w-md rounded-2xl p-5 shadow-2xl border border-slate-100 flex flex-col max-h-[75vh]">
+            <h2 class="font-black text-slate-800 text-[11px] border-b pb-3 uppercase tracking-[0.15em]">Vincular planificación → resultados</h2>
+            <div id="calendar-actions-list" class="p-2 overflow-y-auto space-y-2 mt-2 scrollbar-hide flex-1"></div>
+            <button onclick="closeModal('modal-link')" class="mt-4 text-[9px] text-slate-300 hover:text-slate-500 font-bold uppercase tracking-widest transition-colors">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- MODAL: SETTINGS -->
+    <div id="modal-settings" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[520] p-4 modal-backdrop">
+        <div class="modal-content bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-slate-100 max-h-[80vh] flex flex-col">
+            <h2 class="font-black text-slate-800 text-[11px] border-b pb-3 mb-3 uppercase tracking-[0.15em]">Configurar miembros</h2>
+            <div id="settings-lists" class="overflow-y-auto space-y-4 scrollbar-hide flex-1"></div>
+            <button onclick="saveCategories()" class="btn-primary w-full bg-gradient-to-r from-slate-800 to-slate-900 text-white py-3 rounded-xl font-bold text-[10px] mt-4 uppercase tracking-widest shadow-md">Actualizar lista</button>
+            <button onclick="closeModal('modal-settings')" class="w-full text-slate-300 hover:text-slate-500 font-bold text-[8px] mt-2 uppercase transition-colors">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- MODAL: CHOICE (Edit/Delete) -->
+    <div id="modal-action-choice" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[400] p-4 modal-backdrop">
+        <div class="modal-content bg-white w-full max-w-[220px] rounded-2xl p-6 shadow-2xl border border-slate-100 text-center space-y-3">
+            <h2 id="choice-title" class="font-black text-slate-800 text-[11px] uppercase tracking-wide"></h2>
+            <button onclick="openEditEvent()" class="btn-primary w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-2.5 rounded-xl font-bold text-[9px] uppercase shadow-md">Modificar</button>
+            <button onclick="executeDeleteEvent()" class="w-full bg-red-50 text-red-600 py-2 rounded-xl font-bold text-[8px] uppercase hover:bg-red-100 transition-colors">Eliminar</button>
+            <button onclick="closeModal('modal-action-choice')" class="w-full text-slate-300 hover:text-slate-500 font-bold text-[8px] mt-1 uppercase tracking-wider transition-colors">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- MODAL: BACKUP -->
+    <div id="modal-backup" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[530] p-4 modal-backdrop">
+        <div class="modal-content bg-white w-full max-w-sm rounded-2xl p-6 shadow-2xl border border-slate-100">
+            <h2 class="font-black text-slate-800 text-[11px] border-b pb-3 mb-4 uppercase tracking-[0.15em]">Respaldo de datos</h2>
+            <div class="space-y-3">
+                <button onclick="exportJSON()" class="w-full bg-emerald-50 text-emerald-700 py-3 rounded-xl font-bold text-[9px] uppercase hover:bg-emerald-100 transition-colors border border-emerald-100 flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Descargar respaldo (JSON)
+                </button>
+                <label class="w-full bg-blue-50 text-blue-700 py-3 rounded-xl font-bold text-[9px] uppercase hover:bg-blue-100 transition-colors border border-blue-100 flex items-center justify-center gap-2 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    Restaurar desde respaldo
+                    <input type="file" accept=".json" onchange="importJSON(event)" class="hidden">
+                </label>
+                <div class="border-t pt-3 mt-2">
+                    <button onclick="clearAllData()" class="w-full bg-red-50 text-red-500 py-2 rounded-xl font-bold text-[8px] uppercase hover:bg-red-100 transition-colors">Borrar todos los datos</button>
+                </div>
+            </div>
+            <button onclick="closeModal('modal-backup')" class="w-full text-slate-300 hover:text-slate-500 font-bold text-[9px] mt-4 uppercase tracking-wider transition-colors">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="import-file-input" accept=".json" class="hidden">
+
+    <script src="app.js"></script>
+</body>
+</html>
