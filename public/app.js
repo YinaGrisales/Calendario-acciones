@@ -11,7 +11,7 @@ const MESES_LARGOS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","
 const MESES_CORTOS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 let TRM = 3700;
 let COMISION_BASE = 24900;
-let COMISION_POR_NP = COMISION_BASE * 1.9;
+let COMISION_POR_NP = COMISION_BASE * 1.55;
 
 // ── State ───────────────────────────────────────────────────
 const today = new Date();
@@ -79,8 +79,8 @@ function loadFromStorage() {
             const cfg = JSON.parse(cfgRaw);
             if (cfg.trm) TRM = cfg.trm;
             if (cfg.comisionBase) COMISION_BASE = cfg.comisionBase;
-            else if (cfg.comisionPorNp) COMISION_BASE = Math.round(cfg.comisionPorNp / 1.9);
-            COMISION_POR_NP = COMISION_BASE * 1.9;
+            else if (cfg.comisionPorNp) COMISION_BASE = Math.round(cfg.comisionPorNp / 1.55);
+            COMISION_POR_NP = COMISION_BASE * 1.55;
         }
     } catch (err) {
         showToast('Error al cargar datos locales', 'error');
@@ -526,7 +526,7 @@ function updateTRM(el) {
 function updateComisionBase(el) {
     const val = parseInt(String(el.value).replace(/\D/g, '')) || 0;
     COMISION_BASE = val;
-    COMISION_POR_NP = COMISION_BASE * 1.9;
+    COMISION_POR_NP = COMISION_BASE * 1.55;
     el.value = fmtNum.format(val);
     const resultEl = $('comision-result');
     if (resultEl) resultEl.innerText = fmtCOP.format(COMISION_POR_NP);
@@ -1338,8 +1338,8 @@ function importJSON(evt) {
             if (data.config) {
                 if (data.config.trm) TRM = data.config.trm;
                 if (data.config.comisionBase) COMISION_BASE = data.config.comisionBase;
-                else if (data.config.comisionPorNp) COMISION_BASE = Math.round(data.config.comisionPorNp / 1.9);
-                COMISION_POR_NP = COMISION_BASE * 1.9;
+                else if (data.config.comisionPorNp) COMISION_BASE = Math.round(data.config.comisionPorNp / 1.55);
+                COMISION_POR_NP = COMISION_BASE * 1.55;
             }
 
             savePlanningToStorage();
@@ -1369,7 +1369,7 @@ function clearAllData() {
     quarterActualNps = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     TRM = 3700;
     COMISION_BASE = 24900;
-    COMISION_POR_NP = COMISION_BASE * 1.9;
+    COMISION_POR_NP = COMISION_BASE * 1.55;
     localStorage.removeItem(STORAGE_KEY_PLANNING);
     localStorage.removeItem(STORAGE_KEY_RESULTS);
     localStorage.removeItem(STORAGE_KEY_Q_PROJ);
