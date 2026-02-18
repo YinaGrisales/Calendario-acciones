@@ -19,7 +19,10 @@ const currentYear = today.getFullYear();
 let currentLeverFilter = 'all';
 let currentAffiliateFilter = 'all';
 let currentTypeFilters = ['all'];
+let currentResultPeriod = 'all';
 let saveTimeout = null;
+
+let quarterProjections = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
 
 let categories = {
     comunidad:    { label: "Comunidad",    members: ["Vivi Garcia", "Orange", "Tati Uribe"] },
@@ -34,6 +37,7 @@ let pendingAction = null;
 // ── LocalStorage Persistence ────────────────────────────────
 const STORAGE_KEY_PLANNING = 'hub2026_planning';
 const STORAGE_KEY_RESULTS  = 'hub2026_results';
+const STORAGE_KEY_Q_PROJ   = 'hub2026_q_projections';
 
 function loadFromStorage() {
     try {
@@ -51,8 +55,23 @@ function loadFromStorage() {
         if (resRaw) {
             results = JSON.parse(resRaw) || [];
         }
+        const qProjRaw = localStorage.getItem(STORAGE_KEY_Q_PROJ);
+        if (qProjRaw) {
+            const parsed = JSON.parse(qProjRaw);
+            Object.keys(quarterProjections).forEach(k => {
+                if (parsed[k] !== undefined) quarterProjections[k] = parsed[k];
+            });
+        }
     } catch (err) {
         showToast('Error al cargar datos locales', 'error');
+    }
+}
+
+function saveQProjectionsToStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEY_Q_PROJ, JSON.stringify(quarterProjections));
+    } catch (err) {
+        showToast('Error al guardar proyecciones', 'error');
     }
 }
 
@@ -141,6 +160,34 @@ function getISOWeek(d) {
     date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
     const week1 = new Date(date.getFullYear(), 0, 4);
     return 1 + Math.round(((date.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+}
+
+function getQuarterFromDate(dateStr) {
+    if (!dateStr) return null;
+    const m = new Date(dateStr.replace(/-/g, '/')).getMonth();
+    if (m <= 2) return 'Q1';
+    if (m <= 5) return 'Q2';
+    if (m <= 8) return 'Q3';
+    return 'Q4';
+}
+
+function getMonthsForPeriod(period) {
+    if (period === 'all') return null;
+    if (period === 'Q1') return [0, 1, 2];
+    if (period === 'Q2') return [3, 4, 5];
+    if (period === 'Q3') return [6, 7, 8];
+    if (period === 'Q4') return [9, 10, 11];
+    const idx = parseInt(period);
+    if (!isNaN(idx)) return [idx];
+    return null;
+}
+
+function matchesPeriodFilter(dateStr, period) {
+    if (period === 'all' || !dateStr) return true;
+    const months = getMonthsForPeriod(period);
+    if (!months) return true;
+    const m = new Date(dateStr.replace(/-/g, '/')).getMonth();
+    return months.includes(m);
 }
 
 function $(id) { return document.getElementById(id); }
@@ -374,30 +421,92 @@ function updateStats() {
     }).join(''));
 }
 
+function renderPeriodFilter() {
+    const container = $('result-period-container');
+    if (!container) return;
+
+    const periods = [
+        { id: 'all', label: 'Todo' },
+        { id: 'Q1', label: 'Q1' }, { id: 'Q2', label: 'Q2' },
+        { id: 'Q3', label: 'Q3' }, { id: 'Q4', label: 'Q4' },
+    ];
+    const months = MESES_CORTOS.map((m, i) => ({ id: String(i), label: m }));
+
+    const all = [...periods, ...months];
+    container.innerHTML = all.map(p => {
+        const isActive = currentResultPeriod === p.id;
+        const isQ = p.id.startsWith('Q');
+        const activeClass = isQ
+            ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+            : p.id === 'all'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm font-black'
+                : 'bg-slate-700 text-white border-slate-700 shadow-sm';
+        const inactiveClass = isQ
+            ? 'bg-violet-50 text-violet-600 border-violet-100'
+            : 'bg-white text-slate-400 border-slate-200 opacity-80';
+        return `<button onclick="setResultPeriod('${p.id}')" class="filter-chip ${isActive ? activeClass : inactiveClass}">${p.label}</button>`;
+    }).join('');
+}
+
+function setResultPeriod(period) {
+    currentResultPeriod = period;
+    renderPeriodFilter();
+    renderResultsTable();
+    updateResultStats();
+}
+
+function handleQProjectionInput(q, el) {
+    const val = parseInt(el.value) || 0;
+    quarterProjections[q] = val;
+    saveQProjectionsToStorage();
+    updateResultStats();
+}
+
+function getFilteredResults() {
+    return results.filter(r =>
+        (currentAffiliateFilter === 'all' || r.name === currentAffiliateFilter) &&
+        (currentLeverFilter === 'all' || getAffiliateLever(r.name) === currentLeverFilter) &&
+        matchesPeriodFilter(r.date, currentResultPeriod)
+    );
+}
+
 function updateResultStats() {
-    const mPre = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
     const fil = results.filter(r =>
         (currentAffiliateFilter === 'all' || r.name === currentAffiliateFilter) &&
         (currentLeverFilter === 'all' || getAffiliateLever(r.name) === currentLeverFilter)
     );
-    const mRes = fil.filter(r => r.date && r.date.startsWith(mPre));
-    const mNps = mRes.reduce((acc, r) => acc + (r.nps || 0), 0);
-    const mProj = mRes.reduce((acc, r) => acc + (r.projectedNps || 0), 0);
-    const mDelta = mNps - mProj;
-    const mInv = mRes.reduce((acc, r) =>
+    const periodFil = fil.filter(r => matchesPeriodFilter(r.date, currentResultPeriod));
+
+    const pNps = periodFil.reduce((acc, r) => acc + (r.nps || 0), 0);
+    const pProjFromRows = periodFil.reduce((acc, r) => acc + (r.projectedNps || 0), 0);
+    const pInv = periodFil.reduce((acc, r) =>
         acc + (r.fixed || 0) + (r.variable || 0) + (COMISION_POR_NP * (r.nps || 0)) + (r.pauta || 0), 0
     );
 
-    safeSet('res-stat-nps', mNps);
-    safeSet('res-stat-proj', mProj);
+    let pProj = pProjFromRows;
+    const isQFilter = ['Q1','Q2','Q3','Q4'].includes(currentResultPeriod);
+    if (isQFilter) {
+        pProj = quarterProjections[currentResultPeriod] || 0;
+    }
+
+    const labelEl = $('res-stat-nps-label');
+    if (labelEl) {
+        if (currentResultPeriod === 'all') labelEl.innerText = 'NPs Total';
+        else if (isQFilter) labelEl.innerText = `NPs ${currentResultPeriod}`;
+        else labelEl.innerText = `NPs ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
+    }
+
+    safeSet('res-stat-nps', pNps);
+    safeSet('res-stat-proj', pProj);
+    const pDelta = pNps - pProj;
     const deltaEl = $('res-stat-delta');
     if (deltaEl) {
-        const sign = mDelta > 0 ? '+' : '';
-        deltaEl.innerText = `${sign}${mDelta}`;
+        const sign = pDelta > 0 ? '+' : '';
+        deltaEl.innerText = `${sign}${pDelta}`;
         deltaEl.className = 'text-2xl font-black mt-0.5 ' +
-            (mDelta > 0 ? 'text-green-600' : mDelta < 0 ? 'text-red-500' : 'text-slate-400');
+            (pDelta > 0 ? 'text-green-600' : pDelta < 0 ? 'text-red-500' : 'text-slate-400');
     }
-    safeSet('res-stat-inv', fmtCOP.format(mInv));
+    safeSet('res-stat-inv', fmtCOP.format(pInv));
 
     const qs = [
         {id:'Q1', m:[0,1,2], n:0},
@@ -413,17 +522,29 @@ function updateResultStats() {
         }
     });
 
-    safeHTML('res-stats-quarters', qs.map(q =>
-        `<div class="border-r last:border-0 pr-1 flex flex-col items-center">
+    safeHTML('res-stats-quarters', qs.map(q => {
+        const proj = quarterProjections[q.id] || 0;
+        const delta = q.n - proj;
+        const deltaSign = delta > 0 ? '+' : '';
+        const deltaCls = delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-500' : 'text-slate-300';
+        const isActive = currentResultPeriod === q.id;
+        const ringCls = isActive ? 'ring-2 ring-violet-400 ring-inset' : '';
+        return `<div class="border-r last:border-0 pr-1 flex flex-col items-center cursor-pointer hover:bg-violet-50 rounded-lg py-1 transition-colors ${ringCls}" onclick="setResultPeriod('${q.id}')">
             <p class="text-[7px] font-bold text-indigo-400 uppercase">${q.id}</p>
-            <span class="text-[10px] font-bold text-slate-800">${q.n}</span>
-            <span class="text-[5px] text-slate-300">NPs</span>
-        </div>`
-    ).join(''));
+            <span class="text-[11px] font-black text-slate-800">${q.n}</span>
+            <div class="flex items-center gap-0.5 mt-0.5">
+                <span class="text-[6px] text-violet-400 font-bold">Meta:</span>
+                <input type="text" value="${proj}" onclick="event.stopPropagation()"
+                    oninput="this.value = this.value.replace(/\\D/g, ''); handleQProjectionInput('${q.id}', this)"
+                    class="q-proj-input">
+            </div>
+            <span class="text-[7px] font-bold ${deltaCls} mt-0.5">${deltaSign}${delta}</span>
+        </div>`;
+    }).join(''));
 
     const lNps = {};
     Object.keys(categories).forEach(k => lNps[k] = 0);
-    fil.forEach(r => { const l = getAffiliateLever(r.name); if (l) lNps[l] += (r.nps || 0); });
+    periodFil.forEach(r => { const l = getAffiliateLever(r.name); if (l) lNps[l] += (r.nps || 0); });
 
     safeHTML('res-stats-levers', Object.entries(categories).map(([k, c]) => {
         const dim = currentLeverFilter !== 'all' && currentLeverFilter !== k ? 'opacity-20 grayscale' : '';
@@ -485,7 +606,13 @@ function renderResultsTable() {
     const body = $('results-table-body');
     if (!body) return;
 
-    body.innerHTML = results.map(row => {
+    const filteredRows = results.filter(row =>
+        (currentAffiliateFilter === 'all' || row.name === currentAffiliateFilter) &&
+        (currentLeverFilter === 'all' || getAffiliateLever(row.name) === currentLeverFilter) &&
+        matchesPeriodFilter(row.date, currentResultPeriod)
+    );
+
+    body.innerHTML = filteredRows.map(row => {
         const comis = COMISION_POR_NP * (row.nps || 0);
         const total = (row.fixed || 0) + (row.variable || 0) + comis + (row.pauta || 0);
         const cac = row.nps > 0 ? Math.round(total / row.nps) : 0;
@@ -801,10 +928,11 @@ function openBackupModal() {
 
 function exportJSON() {
     const data = {
-        version: '1.0',
+        version: '1.1',
         exportDate: new Date().toISOString(),
         planning: { events, categories },
-        results
+        results,
+        quarterProjections
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -835,9 +963,15 @@ function importJSON(evt) {
                 }
             }
             if (data.results) results = data.results;
+            if (data.quarterProjections) {
+                Object.keys(quarterProjections).forEach(k => {
+                    if (data.quarterProjections[k] !== undefined) quarterProjections[k] = data.quarterProjections[k];
+                });
+            }
 
             savePlanningToStorage();
             saveResultsToStorage();
+            saveQProjectionsToStorage();
             updateFilters();
             renderTabs();
             refreshViews();
@@ -855,8 +989,10 @@ function clearAllData() {
     if (!confirm('¿Estás seguro de que quieres borrar TODOS los datos? Esta acción no se puede deshacer.')) return;
     events = [];
     results = [];
+    quarterProjections = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     localStorage.removeItem(STORAGE_KEY_PLANNING);
     localStorage.removeItem(STORAGE_KEY_RESULTS);
+    localStorage.removeItem(STORAGE_KEY_Q_PROJ);
     updateFilters();
     renderTabs();
     refreshViews();
@@ -977,6 +1113,7 @@ function showLoading(show) {
 // ── Refresh ─────────────────────────────────────────────────
 function refreshViews() {
     renderCalendar();
+    renderPeriodFilter();
     renderResultsTable();
     updateStats();
     updateResultStats();
