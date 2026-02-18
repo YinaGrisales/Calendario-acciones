@@ -11,8 +11,7 @@ const MESES_LARGOS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","
 const MESES_CORTOS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 let TRM = 3700;
 let COMISION_BASE = 24900;
-let COMISION_PCT = 55;
-let COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
+let COMISION_POR_NP = COMISION_BASE * 1.75;
 
 // ── State ───────────────────────────────────────────────────
 const today = new Date();
@@ -44,6 +43,137 @@ const STORAGE_KEY_RESULTS  = 'hub2026_results';
 const STORAGE_KEY_Q_PROJ   = 'hub2026_q_projections';
 const STORAGE_KEY_Q_ACTUAL = 'hub2026_q_actual_nps';
 const STORAGE_KEY_CONFIG   = 'hub2026_config';
+
+// ── Google Sheets Cloud Sync ─────────────────────────────────
+const GSHEET_API_URL = 'https://script.google.com/macros/s/AKfycbzlQN2FkOoGQ8AxT5oK5rsuUm-xgCALOXKNJuRWPTCkLnzJfgKptiJbQMvwydnuHgqB/exec';
+let cloudSaveTimeout = null;
+let suppressCloudSync = false;
+
+function getFullState() {
+    return {
+        version: '1.3',
+        timestamp: new Date().toISOString(),
+        planning: { events, categories },
+        results,
+        quarterProjections,
+        quarterActualNps,
+        config: { trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT }
+    };
+}
+
+function applyFullState(data) {
+    if (data.planning) {
+        events = data.planning.events || [];
+        if (data.planning.categories) {
+            Object.keys(categories).forEach(k => {
+                if (data.planning.categories[k]) categories[k] = data.planning.categories[k];
+            });
+        }
+    }
+    if (data.results) results = data.results;
+    if (data.quarterProjections) {
+        Object.keys(quarterProjections).forEach(k => {
+            if (data.quarterProjections[k] !== undefined) quarterProjections[k] = data.quarterProjections[k];
+        });
+    }
+    if (data.quarterActualNps) {
+        Object.keys(quarterActualNps).forEach(k => {
+            if (data.quarterActualNps[k] !== undefined) quarterActualNps[k] = data.quarterActualNps[k];
+        });
+    }
+    if (data.config) {
+        if (data.config.trm) TRM = data.config.trm;
+        if (data.config.comisionPct !== undefined) COMISION_PCT = data.config.comisionPct;
+        if (data.config.comisionBase) COMISION_BASE = data.config.comisionBase;
+        COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
+    }
+}
+
+async function loadFromCloud() {
+    try {
+        const res = await fetch(GSHEET_API_URL);
+        const text = await res.text();
+        if (!text || text === '{}') return false;
+        const data = JSON.parse(text);
+        if (data && (data.results || data.planning)) {
+            applyFullState(data);
+            suppressCloudSync = true;
+            savePlanningToStorage();
+            saveResultsToStorage();
+            saveConfigToStorage();
+            saveQProjectionsToStorage();
+            saveQActualToStorage();
+            suppressCloudSync = false;
+            return true;
+        }
+        return false;
+    } catch (err) {
+        console.warn('Cloud load failed, using localStorage', err);
+        return false;
+    }
+}
+
+function saveToCloud() {
+    const payload = JSON.stringify(getFullState());
+    updateSyncIndicator('syncing');
+    fetch(GSHEET_API_URL, {
+        method: 'POST',
+        body: payload,
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    }).then(() => {
+        updateSyncIndicator('synced');
+    }).catch(err => {
+        console.warn('Cloud save failed', err);
+        updateSyncIndicator('error');
+    });
+}
+
+function debouncedSaveToCloud() {
+    if (cloudSaveTimeout) clearTimeout(cloudSaveTimeout);
+    updateSyncIndicator('pending');
+    cloudSaveTimeout = setTimeout(saveToCloud, 1500);
+}
+
+function updateSyncIndicator(state) {
+    const el = document.getElementById('cloud-sync-status');
+    if (!el) return;
+    el.classList.remove('hidden');
+    switch (state) {
+        case 'pending':
+            el.innerHTML = '<span class="animate-pulse">&#9729; Pendiente…</span>';
+            el.className = 'text-[8px] font-bold text-slate-400 uppercase';
+            break;
+        case 'syncing':
+            el.innerHTML = '<span class="animate-pulse">&#8635; Subiendo…</span>';
+            el.className = 'text-[8px] font-bold text-indigo-400 uppercase';
+            break;
+        case 'synced':
+            el.innerHTML = '&#9745; Sincronizado';
+            el.className = 'text-[8px] font-bold text-emerald-400 uppercase';
+            break;
+        case 'error':
+            el.innerHTML = '&#9888; Error al sincronizar';
+            el.className = 'text-[8px] font-bold text-red-400 uppercase';
+            break;
+    }
+}
+
+async function manualCloudSync() {
+    updateSyncIndicator('syncing');
+    showToast('Recargando datos desde la nube…', 'info');
+    const ok = await loadFromCloud();
+    if (ok) {
+        syncConfigInputs();
+        updateFilters();
+        renderTabs();
+        refreshViews();
+        updateSyncIndicator('synced');
+        showToast('Datos actualizados desde la nube ☁', 'success');
+    } else {
+        updateSyncIndicator('error');
+        showToast('No se pudieron cargar datos de la nube', 'error');
+    }
+}
 
 function loadFromStorage() {
     try {
@@ -81,8 +211,8 @@ function loadFromStorage() {
             if (cfg.trm) TRM = cfg.trm;
             if (cfg.comisionPct !== undefined) COMISION_PCT = cfg.comisionPct;
             if (cfg.comisionBase) COMISION_BASE = cfg.comisionBase;
-            else if (cfg.comisionPorNp) COMISION_BASE = Math.round(cfg.comisionPorNp / (1 + COMISION_PCT / 100));
-            COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
+            else if (cfg.comisionPorNp) COMISION_BASE = Math.round(cfg.comisionPorNp / 1.75);
+            COMISION_POR_NP = COMISION_BASE * 1.75;
         }
     } catch (err) {
         showToast('Error al cargar datos locales', 'error');
@@ -95,6 +225,7 @@ function saveConfigToStorage() {
     } catch (err) {
         showToast('Error al guardar configuración', 'error');
     }
+    if (!suppressCloudSync) debouncedSaveToCloud();
 }
 
 function saveQProjectionsToStorage() {
@@ -103,6 +234,7 @@ function saveQProjectionsToStorage() {
     } catch (err) {
         showToast('Error al guardar proyecciones', 'error');
     }
+    if (!suppressCloudSync) debouncedSaveToCloud();
 }
 
 function saveQActualToStorage() {
@@ -111,6 +243,7 @@ function saveQActualToStorage() {
     } catch (err) {
         showToast('Error al guardar NPs reales', 'error');
     }
+    if (!suppressCloudSync) debouncedSaveToCloud();
 }
 
 function savePlanningToStorage() {
@@ -119,6 +252,7 @@ function savePlanningToStorage() {
     } catch (err) {
         showToast('Error al guardar planificación', 'error');
     }
+    if (!suppressCloudSync) debouncedSaveToCloud();
 }
 
 function saveResultsToStorage() {
@@ -127,6 +261,7 @@ function saveResultsToStorage() {
     } catch (err) {
         showToast('Error al guardar resultados', 'error');
     }
+    if (!suppressCloudSync) debouncedSaveToCloud();
 }
 
 function debouncedSaveResults() {
@@ -528,7 +663,7 @@ function updateTRM(el) {
 function updateComisionBase(el) {
     const val = parseInt(String(el.value).replace(/\D/g, '')) || 0;
     COMISION_BASE = val;
-    COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
+    COMISION_POR_NP = COMISION_BASE * 1.75;
     el.value = fmtNum.format(val);
     const resultEl = $('comision-result');
     if (resultEl) resultEl.innerText = fmtCOP.format(COMISION_POR_NP);
@@ -628,8 +763,6 @@ function updateTopStats() {
     safeSet('res-stat-nps', displayNps);
     safeSet('res-stat-nps-acciones', pNps);
     safeSet('res-stat-proj', projSum);
-    safeSet('res-stat-tab-plus-proj', displayNps + projSum);
-    safeSet('res-stat-combo-detail', `${displayNps} + ${projSum}`);
 
     const confirmedFil = periodFil.filter(r => r.confirmed);
     const cacInv = confirmedFil.reduce((acc, r) => {
@@ -1352,8 +1485,8 @@ function importJSON(evt) {
                 if (data.config.trm) TRM = data.config.trm;
                 if (data.config.comisionPct !== undefined) COMISION_PCT = data.config.comisionPct;
                 if (data.config.comisionBase) COMISION_BASE = data.config.comisionBase;
-                else if (data.config.comisionPorNp) COMISION_BASE = Math.round(data.config.comisionPorNp / (1 + COMISION_PCT / 100));
-                COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
+                else if (data.config.comisionPorNp) COMISION_BASE = Math.round(data.config.comisionPorNp / 1.75);
+                COMISION_POR_NP = COMISION_BASE * 1.75;
             }
 
             savePlanningToStorage();
@@ -1383,13 +1516,17 @@ function clearAllData() {
     quarterActualNps = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     TRM = 3700;
     COMISION_BASE = 24900;
-    COMISION_PCT = 55;
-    COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
+    COMISION_POR_NP = COMISION_BASE * 1.75;
     localStorage.removeItem(STORAGE_KEY_PLANNING);
     localStorage.removeItem(STORAGE_KEY_RESULTS);
     localStorage.removeItem(STORAGE_KEY_Q_PROJ);
     localStorage.removeItem(STORAGE_KEY_CONFIG);
     localStorage.removeItem(STORAGE_KEY_Q_ACTUAL);
+    fetch(GSHEET_API_URL, {
+        method: 'POST',
+        body: '{}',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    }).catch(() => {});
     updateFilters();
     renderTabs();
     refreshViews();
@@ -1530,7 +1667,7 @@ function syncConfigInputs() {
     if (resultEl) resultEl.innerText = fmtCOP.format(COMISION_POR_NP);
 }
 
-function init() {
+async function init() {
     showLoading(true);
     loadFromStorage();
     syncConfigInputs();
@@ -1538,9 +1675,18 @@ function init() {
     renderTabs();
     refreshViews();
 
+    const cloudLoaded = await loadFromCloud();
+    if (cloudLoaded) {
+        syncConfigInputs();
+        updateFilters();
+        renderTabs();
+        refreshViews();
+        updateSyncIndicator('synced');
+    }
+
     setTimeout(() => {
         showLoading(false);
-        showToast('Hub cargado correctamente', 'success');
+        showToast(cloudLoaded ? 'Datos cargados desde la nube ☁' : 'Hub cargado (datos locales)', 'success');
     }, 300);
 }
 

@@ -268,7 +268,7 @@
             </div>
 
             <!-- Result stats row 1 -->
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div class="stat-card bg-white p-3 rounded-2xl border border-emerald-100 flex flex-col items-center shadow-sm">
                     <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider" id="res-stat-nps-label">NPs Tableau Q1</span>
                     <span class="text-2xl font-black text-emerald-600 mt-0.5" id="res-stat-nps">0</span>
@@ -281,12 +281,6 @@
                     <span class="text-[9px] font-bold text-violet-400 uppercase tracking-wider">Proyecciones</span>
                     <span class="text-2xl font-black text-violet-600 mt-0.5" id="res-stat-proj">0</span>
                     <span class="text-[7px] text-slate-300 mt-0.5">✓ = excluir de proy.</span>
-                </div>
-                <div class="stat-card bg-gradient-to-br from-teal-50 to-cyan-50 p-3 rounded-2xl border-2 border-teal-200 flex flex-col items-center shadow-sm relative overflow-hidden">
-                    <div class="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-cyan-500/5"></div>
-                    <span class="text-[9px] font-bold text-teal-500 uppercase tracking-wider relative" id="res-stat-combo-label">Tableau + Proy</span>
-                    <span class="text-2xl font-black bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent mt-0.5 relative" id="res-stat-tab-plus-proj">0</span>
-                    <span class="text-[7px] text-teal-400 mt-0.5 relative font-semibold" id="res-stat-combo-detail">0 + 0</span>
                 </div>
                 <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
                     <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Inversión</span>
@@ -369,7 +363,8 @@
 
             <!-- Footer bar -->
             <div class="bg-gradient-to-r from-slate-900 to-slate-800 p-3 rounded-2xl text-white flex flex-wrap justify-between items-center shadow-lg gap-2">
-                <span class="text-[8px] text-slate-400 font-medium uppercase tracking-wider">Guardado automático · localStorage</span>
+                <span class="text-[8px] text-slate-400 font-medium uppercase tracking-wider">Guardado automático · Google Sheets ☁</span>
+                <span class="text-[8px] font-bold text-slate-400 uppercase" id="cloud-sync-status"></span>
                 <div class="flex items-center gap-4">
                     <div class="flex items-center gap-1.5">
                         <span class="text-[8px] text-slate-300 font-bold uppercase">TRM:</span>
@@ -394,6 +389,7 @@
                         <span class="text-[7px] text-slate-400">/NP</span>
                     </div>
                     <span class="text-[8px] font-bold text-emerald-400 uppercase hidden" id="save-indicator">✓ Sincronizado</span>
+                    <button onclick="manualCloudSync()" class="text-[8px] font-bold text-sky-400 uppercase hover:text-sky-300 transition-colors ml-1" title="Forzar recarga desde la nube">&#8635; Recargar nube</button>
                 </div>
             </div>
         </section>
