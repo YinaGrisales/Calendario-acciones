@@ -303,9 +303,10 @@ function renderCalendar() {
         );
 
         const icons = { clase: '🎓', contenido: '📒', cierre: '🚨', convocatoria: '🗓️' };
-        const evsHtml = dEvs.map(e =>
-            `<div class="event-badge type-${e.type}" onclick="event.stopPropagation(); manageAction('${e.id}')">${icons[e.type] || '🗓️'} ${e.affiliate}</div>`
-        ).join('');
+        const evsHtml = dEvs.map(e => {
+            const projLabel = e.projectedNps ? ` [${e.projectedNps}]` : '';
+            return `<div class="event-badge type-${e.type}" onclick="event.stopPropagation(); manageAction('${e.id}')">${icons[e.type] || '🗓️'} ${e.affiliate}${projLabel}</div>`;
+        }).join('');
 
         const isToday = ds === todayStr;
         const dow = new Date(currentYear, currentMonth, d).getDay();
@@ -381,11 +382,21 @@ function updateResultStats() {
     );
     const mRes = fil.filter(r => r.date && r.date.startsWith(mPre));
     const mNps = mRes.reduce((acc, r) => acc + (r.nps || 0), 0);
+    const mProj = mRes.reduce((acc, r) => acc + (r.projectedNps || 0), 0);
+    const mDelta = mNps - mProj;
     const mInv = mRes.reduce((acc, r) =>
         acc + (r.fixed || 0) + (r.variable || 0) + (COMISION_POR_NP * (r.nps || 0)) + (r.pauta || 0), 0
     );
 
     safeSet('res-stat-nps', mNps);
+    safeSet('res-stat-proj', mProj);
+    const deltaEl = $('res-stat-delta');
+    if (deltaEl) {
+        const sign = mDelta > 0 ? '+' : '';
+        deltaEl.innerText = `${sign}${mDelta}`;
+        deltaEl.className = 'text-2xl font-black mt-0.5 ' +
+            (mDelta > 0 ? 'text-green-600' : mDelta < 0 ? 'text-red-500' : 'text-slate-400');
+    }
     safeSet('res-stat-inv', fmtCOP.format(mInv));
 
     const qs = [
@@ -437,6 +448,17 @@ function handleNumberInput(el, id, field) {
     }
 }
 
+function renderDelta(actual, projected) {
+    const nps = actual || 0;
+    const proj = projected || 0;
+    if (proj === 0 && nps === 0) return '<span class="delta-zero">—</span>';
+    const delta = nps - proj;
+    const sign = delta > 0 ? '+' : '';
+    const cls = delta > 0 ? 'delta-positive' : delta < 0 ? 'delta-negative' : 'delta-zero';
+    const arrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '';
+    return `<span class="${cls}">${arrow} ${sign}${delta}</span>`;
+}
+
 function updateCalculatedCells(id) {
     const row = results.find(r => r.id === id);
     if (!row) return;
@@ -448,9 +470,11 @@ function updateCalculatedCells(id) {
     if (!rowEl) return;
 
     const s = (cls, txt) => { const e = rowEl.querySelector(cls); if (e) e.innerText = txt; };
+    const h = (cls, html) => { const e = rowEl.querySelector(cls); if (e) e.innerHTML = html; };
     s('.cvr-ast-wa', row.wa_group > 0 ? (row.attendees / row.wa_group * 100).toFixed(1) + '%' : '0%');
     s('.cvr-wa-tr', row.wa_group > 0 ? (row.trials / row.wa_group * 100).toFixed(1) + '%' : '0%');
     s('.cvr-np-tr', row.trials > 0 ? (row.nps / row.trials * 100).toFixed(1) + '%' : '0%');
+    h('.cell-delta', renderDelta(row.nps, row.projectedNps));
     s('.cell-comis', fmtCOP.format(comis));
     s('.cell-total', fmtCOP.format(total));
     s('.cell-cac-cop', fmtCOP.format(cac));
@@ -483,6 +507,8 @@ function renderResultsTable() {
             <td><input type="text" value="${format(row.trials)}" oninput="handleNumberInput(this, ${row.id}, 'trials')" class="w-10 text-center"></td>
             <td class="formula-col opacity-60 text-[7px] cvr-wa-tr">${row.wa_group > 0 ? (row.trials/row.wa_group*100).toFixed(1)+'%' : '0%'}</td>
             <td><input type="text" value="${format(row.nps)}" oninput="handleNumberInput(this, ${row.id}, 'nps')" class="w-10 text-indigo-600 font-bold text-center"></td>
+            <td class="formula-col text-[7px]"><input type="text" value="${format(row.projectedNps)}" oninput="handleNumberInput(this, ${row.id}, 'projectedNps')" class="w-10 text-center text-violet-600 font-bold"></td>
+            <td class="text-[7px] text-center cell-delta">${renderDelta(row.nps, row.projectedNps)}</td>
             <td class="formula-col opacity-60 text-[7px] cvr-np-tr">${row.trials > 0 ? (row.nps/row.trials*100).toFixed(1)+'%' : '0%'}</td>
             <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.fixed)}" oninput="handleNumberInput(this, ${row.id}, 'fixed')" class="w-14 input-money"></div></td>
             <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.variable)}" oninput="handleNumberInput(this, ${row.id}, 'variable')" class="w-14 input-money"></div></td>
@@ -512,7 +538,8 @@ function addResultRow() {
         date: new Date().toISOString().split('T')[0],
         type: 'Clase',
         wa_group: 0, attendees: 0, trials: 0, nps: 0,
-        fixed: 0, variable: 0, pauta: 0
+        fixed: 0, variable: 0, pauta: 0,
+        projectedNps: 0
     });
     renderResultsTable();
     updateResultStats();
@@ -560,6 +587,7 @@ function openAddModal(d) {
     });
     $('input-start-date').value = d;
     $('input-end-date').value = d;
+    $('input-projected-nps').value = '';
     $('modal-event-title').innerText = 'Nueva acción';
     toggleEndDateField();
     openModal('modal-event');
@@ -596,6 +624,7 @@ function openEditEvent() {
     $('select-type').value = t.type;
     $('input-start-date').value = t.date;
     $('input-end-date').value = t.endDate || t.date;
+    $('input-projected-nps').value = t.projectedNps || '';
     $('modal-event-title').innerText = 'Modificar acción';
     toggleEndDateField();
     openModal('modal-event');
@@ -611,13 +640,16 @@ function saveEvent() {
         return;
     }
 
+    const projNps = parseInt($('input-projected-nps').value) || 0;
+
     if (pendingAction) {
         const idx = events.findIndex(e => e.id === pendingAction.id);
         if (idx !== -1) {
             events[idx] = {
                 ...pendingAction,
                 affiliate: aff, type: typ, date: sd,
-                endDate: typ === 'convocatoria' ? ed : sd
+                endDate: typ === 'convocatoria' ? ed : sd,
+                projectedNps: projNps
             };
         }
         showToast('Acción actualizada', 'success');
@@ -625,7 +657,8 @@ function saveEvent() {
         events.push({
             id: Date.now(),
             affiliate: aff, type: typ, date: sd,
-            endDate: typ === 'convocatoria' ? ed : sd
+            endDate: typ === 'convocatoria' ? ed : sd,
+            projectedNps: projNps
         });
         showToast('Acción creada', 'success');
     }
@@ -666,13 +699,14 @@ function openLinkModal() {
     list.innerHTML = sorted.map(e => {
         const isLinked = existingKeys.includes(`${e.affiliate}_${e.date}_${e.type.toLowerCase()}`);
         const icon = e.type === 'clase' ? '🎓' : '📒';
+        const projBadge = e.projectedNps ? `<span class="text-[7px] font-bold px-1.5 py-0.5 rounded-md bg-violet-50 text-violet-600 ml-1">Proy: ${e.projectedNps}</span>` : '';
         return `<div onclick="${isLinked ? '' : `linkEventToResults('${e.id}')`}"
                      class="p-3 rounded-xl flex justify-between items-center group transition-all border
                      ${isLinked
                          ? 'opacity-40 grayscale cursor-not-allowed bg-slate-50 border-slate-100'
                          : 'hover:bg-indigo-600 hover:text-white hover:border-indigo-600 cursor-pointer bg-white border-slate-200 hover:shadow-md'}">
                     <div>
-                        <span class="font-bold text-[10px] uppercase">${escapeHTML(e.affiliate)}</span>
+                        <span class="font-bold text-[10px] uppercase">${escapeHTML(e.affiliate)}</span>${projBadge}
                         <p class="text-[7px] text-slate-400 group-hover:text-indigo-200 mt-0.5">${e.date}</p>
                     </div>
                     <span class="text-[8px] font-bold px-2 py-1 rounded-lg bg-white text-indigo-600 self-center shadow-sm">${icon} ${e.type}</span>
@@ -691,7 +725,8 @@ function linkEventToResults(id) {
         date: e.date,
         type: e.type.charAt(0).toUpperCase() + e.type.slice(1),
         wa_group: 0, attendees: 0, trials: 0, nps: 0,
-        fixed: 0, variable: 0, pauta: 0
+        fixed: 0, variable: 0, pauta: 0,
+        projectedNps: e.projectedNps || 0
     });
     renderResultsTable();
     updateResultStats();
@@ -745,14 +780,14 @@ function closeModal(id) {
 // Close modals with Escape key
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        const modals = ['modal-event', 'modal-link', 'modal-settings', 'modal-action-choice', 'modal-backup'];
+        const modals = ['modal-event', 'modal-link', 'modal-settings', 'modal-action-choice', 'modal-backup', 'modal-gsheet-import'];
         modals.forEach(id => closeModal(id));
     }
 });
 
 // Close modals when clicking backdrop
 document.addEventListener('click', (e) => {
-    const modals = ['modal-event', 'modal-link', 'modal-settings', 'modal-action-choice', 'modal-backup'];
+    const modals = ['modal-event', 'modal-link', 'modal-settings', 'modal-action-choice', 'modal-backup', 'modal-gsheet-import'];
     modals.forEach(id => {
         const el = $(id);
         if (el && e.target === el) closeModal(id);
@@ -829,6 +864,70 @@ function clearAllData() {
     showToast('Todos los datos eliminados', 'warning');
 }
 
+// ── Import from Google Sheets ───────────────────────────────
+function importFromGoogleSheets() {
+    const calRaw = $('gsheet-calendario').value.trim();
+    const resRaw = $('gsheet-resultados').value.trim();
+
+    if (!calRaw && !resRaw) {
+        showToast('Pega al menos uno de los dos campos', 'warning');
+        return;
+    }
+
+    let importedCal = false;
+    let importedRes = false;
+
+    if (calRaw) {
+        try {
+            const calData = JSON.parse(calRaw);
+            if (calData.events) {
+                events = calData.events;
+                importedCal = true;
+            }
+            if (calData.categories) {
+                Object.keys(categories).forEach(k => {
+                    if (calData.categories[k]) categories[k] = calData.categories[k];
+                });
+                importedCal = true;
+            }
+            if (!importedCal) {
+                showToast('DATA_CALENDARIO: formato no reconocido', 'error');
+            }
+        } catch (err) {
+            showToast('DATA_CALENDARIO: JSON inválido. Verifica que copiaste toda la celda A1.', 'error');
+            return;
+        }
+    }
+
+    if (resRaw) {
+        try {
+            const resData = JSON.parse(resRaw);
+            if (Array.isArray(resData)) {
+                results = resData;
+                importedRes = true;
+            } else {
+                showToast('DATA_RESULTADOS: se esperaba un array []', 'error');
+            }
+        } catch (err) {
+            showToast('DATA_RESULTADOS: JSON inválido. Verifica que copiaste toda la celda A1.', 'error');
+            return;
+        }
+    }
+
+    if (importedCal) savePlanningToStorage();
+    if (importedRes) saveResultsToStorage();
+
+    updateFilters();
+    renderTabs();
+    refreshViews();
+    closeModal('modal-gsheet-import');
+
+    const parts = [];
+    if (importedCal) parts.push('calendario');
+    if (importedRes) parts.push('resultados');
+    showToast(`Importado correctamente: ${parts.join(' + ')}`, 'success');
+}
+
 // ── CSV Export ──────────────────────────────────────────────
 function exportCSV() {
     if (results.length === 0) {
@@ -836,15 +935,17 @@ function exportCSV() {
         return;
     }
 
-    const headers = ['Afiliado','Fecha','Tipo','WA_Group','Asistentes','Trials','NPs','Fijo','Variable','Comisiones','Pauta','TOTAL_INV','CAC_COP','CAC_USD'];
+    const headers = ['Afiliado','Fecha','Tipo','WA_Group','Asistentes','Trials','NPs','Proy_NPs','Delta_NP','Fijo','Variable','Comisiones','Pauta','TOTAL_INV','CAC_COP','CAC_USD'];
     const rows = results.map(r => {
         const comis = COMISION_POR_NP * (r.nps || 0);
         const total = (r.fixed || 0) + (r.variable || 0) + comis + (r.pauta || 0);
         const cacCop = r.nps > 0 ? Math.round(total / r.nps) : 0;
         const cacUsd = r.nps > 0 ? (total / r.nps / TRM).toFixed(2) : '0';
+        const delta = (r.nps || 0) - (r.projectedNps || 0);
         return [
             r.name, r.date, r.type,
             r.wa_group || 0, r.attendees || 0, r.trials || 0, r.nps || 0,
+            r.projectedNps || 0, delta,
             r.fixed || 0, r.variable || 0, comis, r.pauta || 0,
             total, cacCop, cacUsd
         ];

@@ -68,6 +68,9 @@
         .formula-col { background-color: #f5f3ff; color: #4f46e5; font-weight: 700; }
         .total-col { background-color: #f0fdf4; color: #166534; font-weight: 800; }
         .money-col { color: #059669; font-weight: 700; }
+        .delta-positive { color: #16a34a; font-weight: 800; }
+        .delta-negative { color: #dc2626; font-weight: 800; }
+        .delta-zero { color: #94a3b8; font-weight: 600; }
 
         /* Inputs */
         .floating-label-container { position: relative; margin-top: 12px; }
@@ -254,20 +257,28 @@
         <section id="view-results" class="hidden space-y-3">
             <!-- Result stats -->
             <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
-                <div class="md:col-span-3 grid grid-cols-2 gap-2">
+                <div class="md:col-span-4 grid grid-cols-3 gap-2">
                     <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
                         <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">NPs Mes</span>
                         <span class="text-2xl font-black text-indigo-600 mt-0.5" id="res-stat-nps">0</span>
                     </div>
+                    <div class="stat-card bg-white p-3 rounded-2xl border border-violet-100 flex flex-col items-center shadow-sm">
+                        <span class="text-[7px] font-bold text-violet-400 uppercase tracking-wider">Proy. NPs</span>
+                        <span class="text-2xl font-black text-violet-600 mt-0.5" id="res-stat-proj">0</span>
+                    </div>
                     <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
-                        <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Inversión</span>
-                        <span class="text-[10px] font-black text-slate-700 mt-1" id="res-stat-inv">$0</span>
+                        <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Δ Total</span>
+                        <span class="text-2xl font-black mt-0.5" id="res-stat-delta">0</span>
                     </div>
                 </div>
-                <div class="md:col-span-5 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                <div class="md:col-span-2 stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center justify-center shadow-sm">
+                    <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Inversión</span>
+                    <span class="text-[10px] font-black text-slate-700 mt-1" id="res-stat-inv">$0</span>
+                </div>
+                <div class="md:col-span-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
                     <div class="grid grid-cols-4 gap-1 text-center mt-1" id="res-stats-quarters"></div>
                 </div>
-                <div class="md:col-span-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                <div class="md:col-span-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
                     <div id="res-stats-levers" class="flex gap-1.5 overflow-x-auto scrollbar-hide px-1 justify-center mt-1"></div>
                 </div>
             </div>
@@ -299,7 +310,7 @@
                             <th class="text-left pl-3 w-[145px]">Afiliado / Fecha</th>
                             <th>WA</th><th>Asist.</th><th class="formula-col">Ast/WA</th>
                             <th>Tr.</th><th class="formula-col">WA/Tr</th>
-                            <th>NPs</th><th class="formula-col">NP/Tr</th>
+                            <th>NPs</th><th class="formula-col">Proy.</th><th class="formula-col">Δ NP</th><th class="formula-col">NP/Tr</th>
                             <th>Fijo</th><th>Var.</th><th class="money-col">Comis.</th>
                             <th>Pauta</th><th class="total-col">TOTAL</th>
                             <th class="formula-col">CAC COP</th><th class="formula-col">CAC USD</th><th></th>
@@ -333,6 +344,7 @@
                 </div>
                 <div class="floating-label-container"><span class="floating-label">Inicio</span><input type="date" id="input-start-date" class="font-bold text-slate-700"></div>
                 <div id="end-date-container-add" class="hidden floating-label-container"><span class="floating-label">Fin</span><input type="date" id="input-end-date" class="font-bold text-slate-700"></div>
+                <div class="floating-label-container"><span class="floating-label">Proyección NPs</span><input type="text" id="input-projected-nps" class="font-bold text-indigo-600 text-center" placeholder="0" oninput="this.value = this.value.replace(/\D/g, '')"></div>
             </div>
             <button onclick="saveEvent()" class="btn-primary w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-3 rounded-xl font-black text-[10px] mt-6 uppercase tracking-wider shadow-lg">Confirmar</button>
             <button onclick="closeModal('modal-event')" class="w-full text-slate-300 hover:text-slate-500 font-bold text-[9px] mt-2 uppercase tracking-wider transition-colors">Cerrar</button>
@@ -382,11 +394,46 @@
                     Restaurar desde respaldo
                     <input type="file" accept=".json" onchange="importJSON(event)" class="hidden">
                 </label>
+                <button onclick="closeModal('modal-backup'); openModal('modal-gsheet-import')" class="w-full bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 py-3 rounded-xl font-bold text-[9px] uppercase hover:from-amber-100 hover:to-orange-100 transition-colors border border-amber-100 flex items-center justify-center gap-2">
+                    <span class="text-sm">📋</span>
+                    Importar desde Google Sheets
+                </button>
                 <div class="border-t pt-3 mt-2">
                     <button onclick="clearAllData()" class="w-full bg-red-50 text-red-500 py-2 rounded-xl font-bold text-[8px] uppercase hover:bg-red-100 transition-colors">Borrar todos los datos</button>
                 </div>
             </div>
             <button onclick="closeModal('modal-backup')" class="w-full text-slate-300 hover:text-slate-500 font-bold text-[9px] mt-4 uppercase tracking-wider transition-colors">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- MODAL: IMPORTAR DESDE GOOGLE SHEETS -->
+    <div id="modal-gsheet-import" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[540] p-4 modal-backdrop">
+        <div class="modal-content bg-white w-full max-w-lg rounded-2xl p-6 shadow-2xl border border-slate-100 max-h-[85vh] flex flex-col">
+            <h2 class="font-black text-slate-800 text-[11px] border-b pb-3 mb-4 uppercase tracking-[0.15em] flex items-center gap-2">
+                <span class="text-lg">📋</span> Importar desde Google Sheets
+            </h2>
+            <p class="text-[9px] text-slate-400 mb-4 leading-relaxed">
+                Ve a tu Google Sheet, haz click en la celda <strong>A1</strong> de cada pestaña, copia el contenido <strong>(Ctrl+C / Cmd+C)</strong> y pégalo aquí abajo.
+            </p>
+            <div class="space-y-4 overflow-y-auto flex-1 scrollbar-hide">
+                <div>
+                    <label class="text-[8px] font-bold text-green-600 block mb-1.5 uppercase tracking-wider flex items-center gap-1">
+                        <span>📅</span> Paso 1: Pegar contenido de DATA_CALENDARIO (celda A1)
+                    </label>
+                    <textarea id="gsheet-calendario" class="w-full border border-slate-200 rounded-xl p-3 text-[10px] h-28 bg-slate-50 outline-none font-mono text-slate-600 focus:bg-white focus:border-indigo-300 shadow-inner transition-colors resize-none" placeholder='Pega aquí el contenido de A1 de DATA_CALENDARIO...'></textarea>
+                </div>
+                <div>
+                    <label class="text-[8px] font-bold text-blue-600 block mb-1.5 uppercase tracking-wider flex items-center gap-1">
+                        <span>📊</span> Paso 2: Pegar contenido de DATA_RESULTADOS (celda A1)
+                    </label>
+                    <textarea id="gsheet-resultados" class="w-full border border-slate-200 rounded-xl p-3 text-[10px] h-28 bg-slate-50 outline-none font-mono text-slate-600 focus:bg-white focus:border-indigo-300 shadow-inner transition-colors resize-none" placeholder='Pega aquí el contenido de A1 de DATA_RESULTADOS...'></textarea>
+                </div>
+            </div>
+            <button onclick="importFromGoogleSheets()" class="btn-primary w-full bg-gradient-to-r from-emerald-600 to-green-600 text-white py-3 rounded-xl font-black text-[10px] mt-4 uppercase tracking-wider shadow-lg flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                Importar datos
+            </button>
+            <button onclick="closeModal('modal-gsheet-import')" class="w-full text-slate-300 hover:text-slate-500 font-bold text-[9px] mt-2 uppercase tracking-wider transition-colors">Cancelar</button>
         </div>
     </div>
 
