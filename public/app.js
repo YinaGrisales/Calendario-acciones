@@ -739,7 +739,12 @@ function renderResultsTable() {
         (currentAffiliateFilter === 'all' || row.name === currentAffiliateFilter) &&
         (currentLeverFilter === 'all' || getAffiliateLever(row.name) === currentLeverFilter) &&
         matchesPeriodFilter(row.date, currentResultPeriod)
-    ).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    ).sort((a, b) => {
+        if (!a.date && !b.date) return 0;
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return a.date.localeCompare(b.date);
+    });
 
     body.innerHTML = filteredRows.map(row => {
         const comis = COMISION_POR_NP * (row.nps || 0);
@@ -792,10 +797,10 @@ function escapeHTML(str) {
 }
 
 function addResultRow() {
-    results.unshift({
+    results.push({
         id: Date.now(),
         name: '',
-        date: new Date().toISOString().split('T')[0],
+        date: '',
         type: 'Clase',
         wa_group: 0, attendees: 0, trials: 0, nps: 0,
         fixed: 0, variable: 0, pauta: 0,
@@ -806,7 +811,7 @@ function addResultRow() {
     renderResultsTable();
     updateResultStats();
     debouncedSaveResults();
-    showToast('Fila manual agregada', 'info');
+    showToast('Fila manual agregada al final', 'info');
 }
 
 function toggleConfirmed(id, checked) {
