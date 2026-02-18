@@ -20,6 +20,7 @@ let currentLeverFilter = 'all';
 let currentAffiliateFilter = 'all';
 let currentTypeFilters = ['all'];
 let currentResultPeriod = 'all';
+let confirmedOnlyFilter = false;
 let saveTimeout = null;
 
 let quarterProjections = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
@@ -495,6 +496,18 @@ function setResultPeriod(period) {
     updateResultStats();
 }
 
+function toggleConfirmedFilter() {
+    confirmedOnlyFilter = !confirmedOnlyFilter;
+    const btn = $('btn-confirmed-filter');
+    if (btn) {
+        btn.className = confirmedOnlyFilter
+            ? 'filter-chip bg-emerald-600 text-white border-emerald-600 shadow-sm font-black flex items-center gap-1'
+            : 'filter-chip bg-white text-slate-400 border-slate-200 opacity-80 flex items-center gap-1';
+    }
+    renderResultsTable();
+    updateResultStats();
+}
+
 function handleQProjectionInput(q, el) {
     const val = parseInt(el.value) || 0;
     quarterProjections[q] = val;
@@ -598,7 +611,8 @@ function getFilteredResults() {
     return results.filter(r =>
         (currentAffiliateFilter === 'all' || r.name === currentAffiliateFilter) &&
         (currentLeverFilter === 'all' || getAffiliateLever(r.name) === currentLeverFilter) &&
-        matchesPeriodFilter(r.date, currentResultPeriod)
+        matchesPeriodFilter(r.date, currentResultPeriod) &&
+        (!confirmedOnlyFilter || r.confirmed)
     );
 }
 
@@ -841,7 +855,8 @@ function renderResultsTable() {
     const filteredRows = results.filter(row =>
         (currentAffiliateFilter === 'all' || row.name === currentAffiliateFilter) &&
         (currentLeverFilter === 'all' || getAffiliateLever(row.name) === currentLeverFilter) &&
-        matchesPeriodFilter(row.date, currentResultPeriod)
+        matchesPeriodFilter(row.date, currentResultPeriod) &&
+        (!confirmedOnlyFilter || row.confirmed)
     ).sort((a, b) => {
         if (!a.date && !b.date) return 0;
         if (!a.date) return 1;
