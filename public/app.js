@@ -44,8 +44,10 @@ const STORAGE_KEY_Q_PROJ   = 'hub2026_q_projections';
 const STORAGE_KEY_Q_ACTUAL = 'hub2026_q_actual_nps';
 const STORAGE_KEY_CONFIG   = 'hub2026_config';
 
-// ── Google Sheets Cloud Sync ─────────────────────────────────
-const GSHEET_API_URL = 'https://script.google.com/macros/s/AKfycbzlQN2FkOoGQ8AxT5oK5rsuUm-xgCALOXKNJuRWPTCkLnzJfgKptiJbQMvwydnuHgqB/exec';
+// ── Supabase Cloud Sync ──────────────────────────────────────
+const SUPABASE_URL = 'https://tdqupaeytqncifduycvg.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkcXVwYWV5dHFuY2lmZHV5Y3ZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEzODM3OTYsImV4cCI6MjA4Njk1OTc5Nn0.Q-3sEHM-OfBf8ckE5RQtUl9fYldsbmLx1ojOTed3qcI';
+const SB_HEADERS = { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY, 'Content-Type': 'application/json' };
 let cloudSaveTimeout = null;
 let suppressCloudSync = false;
 
@@ -90,14 +92,12 @@ function applyFullState(data) {
 }
 
 async function loadFromCloud() {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-        const res = await fetch(GSHEET_API_URL, { signal: controller.signal });
-        clearTimeout(timeout);
-        const text = await res.text();
-        if (!text || text === '{}') return false;
-        const data = JSON.parse(text);
+        const res = await fetch(SUPABASE_URL + '/rest/v1/hub_state?id=eq.1&select=data', { headers: SB_HEADERS });
+        if (!res.ok) return false;
+        const rows = await res.json();
+        if (!rows.length || !rows[0].data) return false;
+        const data = rows[0].data;
         if (data && (data.results || data.planning)) {
             applyFullState(data);
             suppressCloudSync = true;
@@ -111,21 +111,19 @@ async function loadFromCloud() {
         }
         return false;
     } catch (err) {
-        clearTimeout(timeout);
         console.warn('Cloud load failed, using localStorage', err);
         return false;
     }
 }
 
 function saveToCloud() {
-    const payload = JSON.stringify(getFullState());
     updateSyncIndicator('syncing');
-    fetch(GSHEET_API_URL, {
-        method: 'POST',
-        body: payload,
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-    }).then(() => {
-        updateSyncIndicator('synced');
+    fetch(SUPABASE_URL + '/rest/v1/hub_state?id=eq.1', {
+        method: 'PATCH',
+        headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ data: getFullState(), updated_at: new Date().toISOString() })
+    }).then(r => {
+        updateSyncIndicator(r.ok ? 'synced' : 'error');
     }).catch(err => {
         console.warn('Cloud save failed', err);
         updateSyncIndicator('error');
@@ -135,7 +133,7 @@ function saveToCloud() {
 function debouncedSaveToCloud() {
     if (cloudSaveTimeout) clearTimeout(cloudSaveTimeout);
     updateSyncIndicator('pending');
-    cloudSaveTimeout = setTimeout(saveToCloud, 1500);
+    cloudSaveTimeout = setTimeout(saveToCloud, 1200);
 }
 
 function updateSyncIndicator(state) {
@@ -172,7 +170,7 @@ async function manualCloudSync() {
         renderTabs();
         refreshViews();
         updateSyncIndicator('synced');
-        showToast('Datos actualizados desde la nube ☁', 'success');
+        showToast('Datos actualizados desde la nube', 'success');
     } else {
         updateSyncIndicator('error');
         showToast('No se pudieron cargar datos de la nube', 'error');
@@ -1526,10 +1524,10 @@ function clearAllData() {
     localStorage.removeItem(STORAGE_KEY_Q_PROJ);
     localStorage.removeItem(STORAGE_KEY_CONFIG);
     localStorage.removeItem(STORAGE_KEY_Q_ACTUAL);
-    fetch(GSHEET_API_URL, {
-        method: 'POST',
-        body: '{}',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    fetch(SUPABASE_URL + '/rest/v1/hub_state?id=eq.1', {
+        method: 'PATCH',
+        headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ data: {}, updated_at: new Date().toISOString() })
     }).catch(() => {});
     updateFilters();
     renderTabs();
