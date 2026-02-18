@@ -551,6 +551,15 @@ function updateTopStats() {
     safeSet('res-stat-proj', projSum);
     safeSet('res-stat-tab-plus-proj', displayNps + projSum);
     safeSet('res-stat-combo-detail', `${displayNps} + ${projSum}`);
+
+    const topInv = periodFil.reduce((acc, r) => {
+        const rowComis = r.hasCommission !== false ? COMISION_POR_NP * (r.nps || 0) : 0;
+        return acc + (r.fixed || 0) + (r.variable || 0) + rowComis + (r.pauta || 0);
+    }, 0);
+    const topCacAcc = pNps > 0 ? topInv / pNps / TRM : 0;
+    const topCacGen = displayNps > 0 ? topInv / displayNps / TRM : 0;
+    safeSet('res-cac-acciones', fmtUSD.format(topCacAcc));
+    safeSet('res-cac-general', fmtUSD.format(topCacGen));
 }
 
 function getFilteredResults() {
@@ -605,6 +614,24 @@ function updateResultStats() {
     safeSet('res-stat-combo-detail', `${displayNps} + ${projSum}`);
     safeSet('res-stat-inv', fmtCOP.format(pInv));
 
+    const cacAcciones = pNpsFromTable > 0 ? pInv / pNpsFromTable / TRM : 0;
+    const cacGeneral = displayNps > 0 ? pInv / displayNps / TRM : 0;
+    safeSet('res-cac-acciones', fmtUSD.format(cacAcciones));
+    safeSet('res-cac-general', fmtUSD.format(cacGeneral));
+
+    const cacAccLabel = $('res-cac-acc-label');
+    const cacGenLabel = $('res-cac-gen-label');
+    if (cacAccLabel) {
+        if (currentResultPeriod === 'all') cacAccLabel.innerText = 'CAC USD Acciones Total';
+        else if (isQFilter) cacAccLabel.innerText = `CAC USD Acciones ${currentResultPeriod}`;
+        else cacAccLabel.innerText = `CAC USD Acciones ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
+    }
+    if (cacGenLabel) {
+        if (currentResultPeriod === 'all') cacGenLabel.innerText = 'CAC USD General Total';
+        else if (isQFilter) cacGenLabel.innerText = `CAC USD General ${currentResultPeriod}`;
+        else cacGenLabel.innerText = `CAC USD General ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
+    }
+
     const qs = [
         {id:'Q1', m:[0,1,2], n:0},
         {id:'Q2', m:[3,4,5], n:0},
@@ -620,11 +647,14 @@ function updateResultStats() {
     });
 
     const qProj = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+    const qInv = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     fil.forEach(r => {
-        if (r.date && !r.confirmed) {
+        if (r.date) {
             const m = new Date(r.date.replace(/-/g,'/')).getMonth();
             const qId = m < 3 ? 'Q1' : m < 6 ? 'Q2' : m < 9 ? 'Q3' : 'Q4';
-            qProj[qId] += (r.projectedNps || 0);
+            if (!r.confirmed) qProj[qId] += (r.projectedNps || 0);
+            const rowComis = r.hasCommission !== false ? COMISION_POR_NP * (r.nps || 0) : 0;
+            qInv[qId] += (r.fixed || 0) + (r.variable || 0) + rowComis + (r.pauta || 0);
         }
     });
 
@@ -632,6 +662,8 @@ function updateResultStats() {
         const tableau = quarterActualNps[q.id] || 0;
         const meta = quarterProjections[q.id] || 0;
         const projQ = qProj[q.id] || 0;
+        const invQ = qInv[q.id] || 0;
+        const npsAccQ = q.n;
 
         const deltaTvM = tableau - meta;
         const deltaTvMcls = deltaTvM < 0 ? 'text-red-500' : 'text-emerald-500';
@@ -641,6 +673,9 @@ function updateResultStats() {
         const deltaTPvM = tabPlusProy - meta;
         const deltaTPcls = deltaTPvM < 0 ? 'text-amber-500' : 'text-emerald-500';
         const deltaTPtxt = deltaTPvM < 0 ? 'Faltan: ' + Math.abs(deltaTPvM) : 'Cumplida';
+
+        const cacAccQ = npsAccQ > 0 ? invQ / npsAccQ / TRM : 0;
+        const cacGenQ = tableau > 0 ? invQ / tableau / TRM : 0;
 
         const isActive = currentResultPeriod === q.id;
         const ringCls = isActive ? 'ring-2 ring-violet-400 ring-inset' : '';
@@ -661,6 +696,10 @@ function updateResultStats() {
             <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-1">
                 <span class="text-xs font-bold ${deltaTvMcls}" data-q-faltan-real="${q.id}">Tableau vs Meta: ${deltaTvMtxt}</span>
                 <span class="text-xs font-bold ${deltaTPcls}" data-q-faltan-proy="${q.id}">Tab+Proy vs Meta: ${deltaTPtxt}</span>
+            </div>
+            <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-0.5">
+                <span class="text-[8px] text-amber-500 font-bold">CAC Acc: ${fmtUSD.format(cacAccQ)}</span>
+                <span class="text-[8px] text-rose-500 font-bold">CAC Gen: ${fmtUSD.format(cacGenQ)}</span>
             </div>
         </div>`;
     }).join(''));
