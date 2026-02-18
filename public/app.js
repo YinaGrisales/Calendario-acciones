@@ -519,11 +519,10 @@ function updateQDelta(q) {
     faltanRealEl.innerText = 'Tableau vs Meta: ' + (deltaTvM < 0 ? 'Faltan: ' + Math.abs(deltaTvM) : 'Cumplida');
 
     if (faltanProyEl) {
-        const deltaTvP = tableau - projQ;
-        const cls = deltaTvP > 0 ? 'text-emerald-500' : deltaTvP < 0 ? 'text-amber-500' : 'text-slate-400';
-        const sign = deltaTvP > 0 ? '+' : '';
+        const deltaTPvM = (tableau + projQ) - meta;
+        const cls = deltaTPvM < 0 ? 'text-amber-500' : 'text-emerald-500';
         faltanProyEl.className = `text-xs font-bold ${cls}`;
-        faltanProyEl.innerText = `Tableau vs Proy: ${sign}${deltaTvP}`;
+        faltanProyEl.innerText = 'Tab+Proy vs Meta: ' + (deltaTPvM < 0 ? 'Faltan: ' + Math.abs(deltaTPvM) : 'Cumplida');
     }
 }
 
@@ -627,9 +626,10 @@ function updateResultStats() {
         const deltaTvMcls = deltaTvM < 0 ? 'text-red-500' : 'text-emerald-500';
         const deltaTvMtxt = deltaTvM < 0 ? 'Faltan: ' + Math.abs(deltaTvM) : 'Cumplida';
 
-        const deltaTvP = tableau - projQ;
-        const deltaTvPcls = deltaTvP > 0 ? 'text-emerald-500' : deltaTvP < 0 ? 'text-amber-500' : 'text-slate-400';
-        const deltaTvPsign = deltaTvP > 0 ? '+' : '';
+        const tabPlusProy = tableau + projQ;
+        const deltaTPvM = tabPlusProy - meta;
+        const deltaTPcls = deltaTPvM < 0 ? 'text-amber-500' : 'text-emerald-500';
+        const deltaTPtxt = deltaTPvM < 0 ? 'Faltan: ' + Math.abs(deltaTPvM) : 'Cumplida';
 
         const isActive = currentResultPeriod === q.id;
         const ringCls = isActive ? 'ring-2 ring-violet-400 ring-inset' : '';
@@ -649,7 +649,7 @@ function updateResultStats() {
             </div>
             <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-1">
                 <span class="text-xs font-bold ${deltaTvMcls}" data-q-faltan-real="${q.id}">Tableau vs Meta: ${deltaTvMtxt}</span>
-                <span class="text-xs font-bold ${deltaTvPcls}" data-q-faltan-proy="${q.id}">Tableau vs Proy: ${deltaTvPsign}${deltaTvP}</span>
+                <span class="text-xs font-bold ${deltaTPcls}" data-q-faltan-proy="${q.id}">Tab+Proy vs Meta: ${deltaTPtxt}</span>
             </div>
         </div>`;
     }).join(''));
