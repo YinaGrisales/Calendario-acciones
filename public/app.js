@@ -154,6 +154,13 @@ function showToast(message, type) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────
+function cacColor(usd) {
+    if (usd <= 0) return 'text-slate-400';
+    if (usd <= 69) return 'text-emerald-600';
+    if (usd <= 81) return 'text-amber-500';
+    return 'text-red-600';
+}
+
 function unformat(val) {
     if (typeof val === 'number') return val;
     if (!val) return 0;
@@ -560,8 +567,10 @@ function updateTopStats() {
     const cacNps = confirmedFil.reduce((acc, r) => acc + (r.nps || 0), 0);
     const topCacAcc = cacNps > 0 ? cacInv / cacNps / TRM : 0;
     const topCacGen = displayNps > 0 ? cacInv / displayNps / TRM : 0;
-    safeSet('res-cac-acciones', fmtUSD.format(topCacAcc));
-    safeSet('res-cac-general', fmtUSD.format(topCacGen));
+    const elCacAcc = $('res-cac-acciones');
+    const elCacGen = $('res-cac-general');
+    if (elCacAcc) { elCacAcc.innerText = fmtUSD.format(topCacAcc); elCacAcc.className = `text-2xl font-black mt-0.5 ${cacColor(topCacAcc)}`; }
+    if (elCacGen) { elCacGen.innerText = fmtUSD.format(topCacGen); elCacGen.className = `text-2xl font-black mt-0.5 ${cacColor(topCacGen)}`; }
 }
 
 function getFilteredResults() {
@@ -624,8 +633,10 @@ function updateResultStats() {
     const cacNpsAcc = confirmedPeriodFil.reduce((acc, r) => acc + (r.nps || 0), 0);
     const cacAcciones = cacNpsAcc > 0 ? cacInv / cacNpsAcc / TRM : 0;
     const cacGeneral = displayNps > 0 ? cacInv / displayNps / TRM : 0;
-    safeSet('res-cac-acciones', fmtUSD.format(cacAcciones));
-    safeSet('res-cac-general', fmtUSD.format(cacGeneral));
+    const elCacAcc2 = $('res-cac-acciones');
+    const elCacGen2 = $('res-cac-general');
+    if (elCacAcc2) { elCacAcc2.innerText = fmtUSD.format(cacAcciones); elCacAcc2.className = `text-2xl font-black mt-0.5 ${cacColor(cacAcciones)}`; }
+    if (elCacGen2) { elCacGen2.innerText = fmtUSD.format(cacGeneral); elCacGen2.className = `text-2xl font-black mt-0.5 ${cacColor(cacGeneral)}`; }
 
     const cacAccLabel = $('res-cac-acc-label');
     const cacGenLabel = $('res-cac-gen-label');
@@ -710,8 +721,8 @@ function updateResultStats() {
                 <span class="text-xs font-bold ${deltaTPcls}" data-q-faltan-proy="${q.id}">Tab+Proy vs Meta: ${deltaTPtxt}</span>
             </div>
             <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-0.5">
-                <span class="text-[8px] text-amber-500 font-bold">CAC Acc: ${fmtUSD.format(cacAccQ)}</span>
-                <span class="text-[8px] text-rose-500 font-bold">CAC Gen: ${fmtUSD.format(cacGenQ)}</span>
+                <span class="text-[8px] font-bold ${cacColor(cacAccQ)}">CAC Acc: ${fmtUSD.format(cacAccQ)}</span>
+                <span class="text-[8px] font-bold ${cacColor(cacGenQ)}">CAC Gen: ${fmtUSD.format(cacGenQ)}</span>
             </div>
         </div>`;
     }).join(''));
@@ -780,7 +791,12 @@ function updateCalculatedCells(id) {
     s('.cell-comis', fmtCOP.format(comis));
     s('.cell-total', fmtCOP.format(total));
     s('.cell-cac-cop', fmtCOP.format(cac));
-    s('.cell-cac-usd', fmtUSD.format(cac / TRM));
+    const cacUsdEl = rowEl.querySelector('.cell-cac-usd');
+    if (cacUsdEl) {
+        const cacUsdVal = cac / TRM;
+        cacUsdEl.innerText = fmtUSD.format(cacUsdVal);
+        cacUsdEl.className = `formula-col text-[7px] cell-cac-usd font-bold ${cacColor(cacUsdVal)}`;
+    }
 }
 
 function renderResultsTable() {
@@ -838,7 +854,7 @@ function renderResultsTable() {
             <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.pauta)}" oninput="handleNumberInput(this, ${row.id}, 'pauta')" class="w-14 input-money"></div></td>
             <td class="total-col text-[7px] cell-total">${fmtCOP.format(total)}</td>
             <td class="formula-col text-[7px] cell-cac-cop">${fmtCOP.format(cac)}</td>
-            <td class="formula-col text-indigo-600 text-[7px] cell-cac-usd">${fmtUSD.format(cac / TRM)}</td>
+            <td class="formula-col text-[7px] cell-cac-usd font-bold ${cacColor(cac / TRM)}">${fmtUSD.format(cac / TRM)}</td>
             <td class="cursor-pointer" onclick="openNoteModal(${row.id})">
                 <div class="w-24 text-[9px] text-slate-400 italic truncate hover:text-indigo-500 transition-colors" title="${escapeHTML(row.notes || '')}">${row.notes ? escapeHTML(row.notes).substring(0, 20) + (row.notes.length > 20 ? '...' : '') : '<span class=&quot;text-slate-200&quot;>+ nota</span>'}</div>
             </td>
