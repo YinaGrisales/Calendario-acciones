@@ -9,8 +9,8 @@ const fmtNum = new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximu
 
 const MESES_LARGOS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 const MESES_CORTOS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-const TRM = 3700;
-const COMISION_POR_NP = 43575;
+let TRM = 3700;
+let COMISION_POR_NP = 43575;
 
 // ── State ───────────────────────────────────────────────────
 const today = new Date();
@@ -41,6 +41,7 @@ const STORAGE_KEY_PLANNING = 'hub2026_planning';
 const STORAGE_KEY_RESULTS  = 'hub2026_results';
 const STORAGE_KEY_Q_PROJ   = 'hub2026_q_projections';
 const STORAGE_KEY_Q_ACTUAL = 'hub2026_q_actual_nps';
+const STORAGE_KEY_CONFIG   = 'hub2026_config';
 
 function loadFromStorage() {
     try {
@@ -72,8 +73,22 @@ function loadFromStorage() {
                 if (parsed[k] !== undefined) quarterActualNps[k] = parsed[k];
             });
         }
+        const cfgRaw = localStorage.getItem(STORAGE_KEY_CONFIG);
+        if (cfgRaw) {
+            const cfg = JSON.parse(cfgRaw);
+            if (cfg.trm) TRM = cfg.trm;
+            if (cfg.comisionPorNp) COMISION_POR_NP = cfg.comisionPorNp;
+        }
     } catch (err) {
         showToast('Error al cargar datos locales', 'error');
+    }
+}
+
+function saveConfigToStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify({ trm: TRM, comisionPorNp: COMISION_POR_NP }));
+    } catch (err) {
+        showToast('Error al guardar configuración', 'error');
     }
 }
 
@@ -492,6 +507,24 @@ function renderPeriodFilter() {
 function setResultPeriod(period) {
     currentResultPeriod = period;
     renderPeriodFilter();
+    renderResultsTable();
+    updateResultStats();
+}
+
+function updateTRM(el) {
+    const val = parseInt(String(el.value).replace(/\D/g, '')) || 0;
+    TRM = val;
+    el.value = fmtNum.format(val);
+    saveConfigToStorage();
+    renderResultsTable();
+    updateResultStats();
+}
+
+function updateComisionPorNp(el) {
+    const val = parseInt(String(el.value).replace(/\D/g, '')) || 0;
+    COMISION_POR_NP = val;
+    el.value = fmtNum.format(val);
+    saveConfigToStorage();
     renderResultsTable();
     updateResultStats();
 }
@@ -1249,12 +1282,13 @@ function openBackupModal() {
 
 function exportJSON() {
     const data = {
-        version: '1.2',
+        version: '1.3',
         exportDate: new Date().toISOString(),
         planning: { events, categories },
         results,
         quarterProjections,
-        quarterActualNps
+        quarterActualNps,
+        config: { trm: TRM, comisionPorNp: COMISION_POR_NP }
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1295,9 +1329,15 @@ function importJSON(evt) {
                     if (data.quarterActualNps[k] !== undefined) quarterActualNps[k] = data.quarterActualNps[k];
                 });
             }
+            if (data.config) {
+                if (data.config.trm) TRM = data.config.trm;
+                if (data.config.comisionPorNp) COMISION_POR_NP = data.config.comisionPorNp;
+            }
 
             savePlanningToStorage();
             saveResultsToStorage();
+            saveConfigToStorage();
+            syncConfigInputs();
             saveQProjectionsToStorage();
             saveQActualToStorage();
             updateFilters();
@@ -1319,9 +1359,12 @@ function clearAllData() {
     results = [];
     quarterProjections = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     quarterActualNps = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+    TRM = 3700;
+    COMISION_POR_NP = 43575;
     localStorage.removeItem(STORAGE_KEY_PLANNING);
     localStorage.removeItem(STORAGE_KEY_RESULTS);
     localStorage.removeItem(STORAGE_KEY_Q_PROJ);
+    localStorage.removeItem(STORAGE_KEY_CONFIG);
     localStorage.removeItem(STORAGE_KEY_Q_ACTUAL);
     updateFilters();
     renderTabs();
@@ -1452,9 +1495,17 @@ function refreshViews() {
 }
 
 // ── Init ────────────────────────────────────────────────────
+function syncConfigInputs() {
+    const trmEl = $('input-trm');
+    const comEl = $('input-comision');
+    if (trmEl) trmEl.value = fmtNum.format(TRM);
+    if (comEl) comEl.value = fmtNum.format(COMISION_POR_NP);
+}
+
 function init() {
     showLoading(true);
     loadFromStorage();
+    syncConfigInputs();
     updateFilters();
     renderTabs();
     refreshViews();

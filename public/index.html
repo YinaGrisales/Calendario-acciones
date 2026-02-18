@@ -368,9 +368,25 @@
             </div>
 
             <!-- Footer bar -->
-            <div class="bg-gradient-to-r from-slate-900 to-slate-800 p-3 rounded-2xl text-white flex justify-between items-center shadow-lg">
-                <span class="text-[8px] text-slate-400 font-medium uppercase tracking-wider">Guardado automático · localStorage · TRM: $3.700</span>
-                <span class="text-[8px] font-bold text-emerald-400 uppercase hidden" id="save-indicator">✓ Sincronizado</span>
+            <div class="bg-gradient-to-r from-slate-900 to-slate-800 p-3 rounded-2xl text-white flex flex-wrap justify-between items-center shadow-lg gap-2">
+                <span class="text-[8px] text-slate-400 font-medium uppercase tracking-wider">Guardado automático · localStorage</span>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[8px] text-slate-500 font-bold uppercase">TRM:</span>
+                        <span class="text-[8px] text-slate-500">$</span>
+                        <input type="text" id="input-trm" value="3.700"
+                            onchange="updateTRM(this)"
+                            class="bg-slate-800 border border-slate-700 rounded-lg text-[9px] font-bold text-white text-center w-16 py-1 px-1.5 outline-none focus:border-indigo-500 transition-colors">
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-[8px] text-slate-500 font-bold uppercase">Comisión/NP:</span>
+                        <span class="text-[8px] text-slate-500">$</span>
+                        <input type="text" id="input-comision" value="43.575"
+                            onchange="updateComisionPorNp(this)"
+                            class="bg-slate-800 border border-slate-700 rounded-lg text-[9px] font-bold text-white text-center w-16 py-1 px-1.5 outline-none focus:border-indigo-500 transition-colors">
+                    </div>
+                    <span class="text-[8px] font-bold text-emerald-400 uppercase hidden" id="save-indicator">✓ Sincronizado</span>
+                </div>
             </div>
         </section>
     </div>
