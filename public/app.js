@@ -90,8 +90,11 @@ function applyFullState(data) {
 }
 
 async function loadFromCloud() {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     try {
-        const res = await fetch(GSHEET_API_URL);
+        const res = await fetch(GSHEET_API_URL, { signal: controller.signal });
+        clearTimeout(timeout);
         const text = await res.text();
         if (!text || text === '{}') return false;
         const data = JSON.parse(text);
@@ -108,6 +111,7 @@ async function loadFromCloud() {
         }
         return false;
     } catch (err) {
+        clearTimeout(timeout);
         console.warn('Cloud load failed, using localStorage', err);
         return false;
     }
@@ -1667,27 +1671,28 @@ function syncConfigInputs() {
     if (resultEl) resultEl.innerText = fmtCOP.format(COMISION_POR_NP);
 }
 
-async function init() {
+function init() {
     showLoading(true);
     loadFromStorage();
     syncConfigInputs();
     updateFilters();
     renderTabs();
     refreshViews();
+    showLoading(false);
 
-    const cloudLoaded = await loadFromCloud();
-    if (cloudLoaded) {
-        syncConfigInputs();
-        updateFilters();
-        renderTabs();
-        refreshViews();
-        updateSyncIndicator('synced');
-    }
-
-    setTimeout(() => {
-        showLoading(false);
-        showToast(cloudLoaded ? 'Datos cargados desde la nube ☁' : 'Hub cargado (datos locales)', 'success');
-    }, 300);
+    updateSyncIndicator('syncing');
+    loadFromCloud().then(cloudLoaded => {
+        if (cloudLoaded) {
+            syncConfigInputs();
+            updateFilters();
+            renderTabs();
+            refreshViews();
+            updateSyncIndicator('synced');
+            showToast('Datos actualizados desde la nube ☁', 'success');
+        } else {
+            updateSyncIndicator('synced');
+        }
+    });
 }
 
 window.onload = init;
