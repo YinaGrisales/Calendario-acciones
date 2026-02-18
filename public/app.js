@@ -498,19 +498,35 @@ function handleQActualInput(q, el) {
 }
 
 function updateQDelta(q) {
-    const deltaEl = document.querySelector(`[data-q-delta="${q}"]`);
-    const faltanEl = document.querySelector(`[data-q-faltan="${q}"]`);
-    if (!deltaEl) return;
+    const faltanRealEl = document.querySelector(`[data-q-faltan-real="${q}"]`);
+    const faltanProyEl = document.querySelector(`[data-q-faltan-proy="${q}"]`);
+    const proySumEl = document.querySelector(`[data-q-proy-sum="${q}"]`);
+    if (!faltanRealEl) return;
+
     const actual = quarterActualNps[q] || 0;
-    const proj = quarterProjections[q] || 0;
-    const delta = actual - proj;
-    const sign = delta > 0 ? '+' : '';
-    const cls = delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-500' : 'text-slate-300';
-    deltaEl.className = `text-sm font-black mt-1.5 ${cls}`;
-    deltaEl.innerText = `${sign}${delta}`;
-    if (faltanEl) {
-        faltanEl.className = `text-xs font-bold mt-1 ${delta < 0 ? 'text-amber-500' : 'text-emerald-500'}`;
-        faltanEl.innerText = delta < 0 ? 'Faltan: ' + Math.abs(delta) : 'Meta cumplida';
+    const meta = quarterProjections[q] || 0;
+
+    const qMonths = { Q1: [0,1,2], Q2: [3,4,5], Q3: [6,7,8], Q4: [9,10,11] };
+    let projTable = 0;
+    results.forEach(r => {
+        if (r.date) {
+            const m = new Date(r.date.replace(/-/g,'/')).getMonth();
+            if (qMonths[q].includes(m)) projTable += (r.projectedNps || 0);
+        }
+    });
+
+    const realPlusProy = actual + projTable;
+    const deltaReal = actual - meta;
+    const deltaProy = realPlusProy - meta;
+
+    if (proySumEl) proySumEl.innerText = 'Real + Proy: ' + realPlusProy;
+
+    faltanRealEl.className = `text-xs font-bold ${deltaReal < 0 ? 'text-red-500' : 'text-emerald-500'}`;
+    faltanRealEl.innerText = 'Real vs Meta: ' + (deltaReal < 0 ? 'Faltan: ' + Math.abs(deltaReal) : 'Cumplida');
+
+    if (faltanProyEl) {
+        faltanProyEl.className = `text-xs font-bold ${deltaProy < 0 ? 'text-amber-500' : 'text-emerald-500'}`;
+        faltanProyEl.innerText = 'Con proy: ' + (deltaProy < 0 ? 'Faltan: ' + Math.abs(deltaProy) : 'Cumplida');
     }
 }
 
@@ -604,19 +620,30 @@ function updateResultStats() {
         }
     });
 
+    const qProjFromTable = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+    fil.forEach(r => {
+        if (r.date) {
+            const m = new Date(r.date.replace(/-/g,'/')).getMonth();
+            const qId = m < 3 ? 'Q1' : m < 6 ? 'Q2' : m < 9 ? 'Q3' : 'Q4';
+            qProjFromTable[qId] += (r.projectedNps || 0);
+        }
+    });
+
     safeHTML('res-stats-quarters', qs.map(q => {
         const actual = quarterActualNps[q.id] || 0;
-        const proj = quarterProjections[q.id] || 0;
-        const delta = actual - proj;
-        const deltaSign = delta > 0 ? '+' : '';
-        const deltaCls = delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-500' : 'text-slate-300';
+        const meta = quarterProjections[q.id] || 0;
+        const projTable = qProjFromTable[q.id] || 0;
+        const realPlusProy = actual + projTable;
+        const deltaReal = actual - meta;
+        const deltaProy = realPlusProy - meta;
         const isActive = currentResultPeriod === q.id;
         const ringCls = isActive ? 'ring-2 ring-violet-400 ring-inset' : '';
-        const faltanCls = delta < 0 ? 'text-amber-500' : 'text-emerald-500';
-        const faltanTxt = delta < 0 ? 'Faltan: ' + Math.abs(delta) : 'Meta cumplida';
+        const faltanRealCls = deltaReal < 0 ? 'text-red-500' : 'text-emerald-500';
+        const faltanRealTxt = deltaReal < 0 ? 'Faltan: ' + Math.abs(deltaReal) : 'Cumplida';
+        const faltanProyCls = deltaProy < 0 ? 'text-amber-500' : 'text-emerald-500';
+        const faltanProyTxt = deltaProy < 0 ? 'Faltan: ' + Math.abs(deltaProy) : 'Cumplida';
         return `<div class="flex flex-col items-center cursor-pointer hover:bg-violet-50 rounded-xl p-3 transition-colors ${ringCls} border border-slate-100" onclick="setResultPeriod('${q.id}')">
             <p class="text-sm font-black text-indigo-500 uppercase tracking-wide">${q.id}</p>
-            <span class="text-xs text-slate-400 font-medium mt-1">Tabla: ${q.n}</span>
             <div class="flex items-center gap-1.5 mt-2">
                 <span class="text-xs text-emerald-500 font-bold">Real:</span>
                 <input type="text" value="${actual}" onclick="event.stopPropagation()"
@@ -625,12 +652,15 @@ function updateResultStats() {
             </div>
             <div class="flex items-center gap-1.5 mt-1.5">
                 <span class="text-xs text-violet-500 font-bold">Meta:</span>
-                <input type="text" value="${proj}" onclick="event.stopPropagation()"
+                <input type="text" value="${meta}" onclick="event.stopPropagation()"
                     onchange="handleQProjectionInput('${q.id}', this)"
                     class="w-16 text-center text-sm font-bold rounded-lg border border-violet-300 text-violet-700 bg-violet-50 focus:border-violet-500 focus:outline-none px-2 py-1">
             </div>
-            <span class="text-sm font-black mt-1.5 ${deltaCls}" data-q-delta="${q.id}">${deltaSign}${delta}</span>
-            <span class="text-xs font-bold mt-1 ${faltanCls}" data-q-faltan="${q.id}">${faltanTxt}</span>
+            <span class="text-xs text-slate-400 font-medium mt-1.5" data-q-proy-sum="${q.id}">Real + Proy: ${realPlusProy}</span>
+            <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-0.5">
+                <span class="text-xs font-bold ${faltanRealCls}" data-q-faltan-real="${q.id}">Real vs Meta: ${faltanRealTxt}</span>
+                <span class="text-xs font-bold ${faltanProyCls}" data-q-faltan-proy="${q.id}">Con proy: ${faltanProyTxt}</span>
+            </div>
         </div>`;
     }).join(''));
 
