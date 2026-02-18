@@ -719,6 +719,8 @@ function renderResultsTable() {
             <td class="total-col text-[7px] cell-total">${fmtCOP.format(total)}</td>
             <td class="formula-col text-[7px] cell-cac-cop">${fmtCOP.format(cac)}</td>
             <td class="formula-col text-indigo-600 text-[7px] cell-cac-usd">${fmtUSD.format(cac / TRM)}</td>
+            <td><input type="text" value="${escapeHTML(row.notes || '')}" onchange="updateResultValue(${row.id}, 'notes', this.value)"
+                class="w-24 text-[9px] text-slate-500 border-none bg-transparent p-0 focus:ring-0 italic" placeholder="..."></td>
             <td>
                 <button onclick="deleteResultRow(${row.id})" class="text-slate-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 text-sm font-bold">×</button>
             </td>
@@ -741,7 +743,8 @@ function addResultRow() {
         type: 'Clase',
         wa_group: 0, attendees: 0, trials: 0, nps: 0,
         fixed: 0, variable: 0, pauta: 0,
-        projectedNps: 0
+        projectedNps: 0,
+        notes: ''
     });
     renderResultsTable();
     updateResultStats();
@@ -762,6 +765,8 @@ function updateResultValue(id, field, val) {
     if (field === 'name' || field === 'date' || field === 'type') {
         r[field] = val;
         renderResultsTable();
+    } else if (field === 'notes') {
+        r[field] = val;
     } else {
         r[field] = unformat(val);
         updateCalculatedCells(id);
@@ -928,7 +933,8 @@ function linkEventToResults(id) {
         type: e.type.charAt(0).toUpperCase() + e.type.slice(1),
         wa_group: 0, attendees: 0, trials: 0, nps: 0,
         fixed: 0, variable: 0, pauta: 0,
-        projectedNps: e.projectedNps || 0
+        projectedNps: e.projectedNps || 0,
+        notes: ''
     });
     renderResultsTable();
     updateResultStats();
@@ -1155,7 +1161,7 @@ function exportCSV() {
         return;
     }
 
-    const headers = ['Afiliado','Fecha','Tipo','WA_Group','Asistentes','Trials','NPs','Proy_NPs','Delta_NP','Fijo','Variable','Comisiones','Pauta','TOTAL_INV','CAC_COP','CAC_USD'];
+    const headers = ['Afiliado','Fecha','Tipo','WA_Group','Asistentes','Trials','NPs','Proy_NPs','Delta_NP','Fijo','Variable','Comisiones','Pauta','TOTAL_INV','CAC_COP','CAC_USD','Notas'];
     const rows = results.map(r => {
         const comis = COMISION_POR_NP * (r.nps || 0);
         const total = (r.fixed || 0) + (r.variable || 0) + comis + (r.pauta || 0);
@@ -1167,7 +1173,8 @@ function exportCSV() {
             r.wa_group || 0, r.attendees || 0, r.trials || 0, r.nps || 0,
             r.projectedNps || 0, delta,
             r.fixed || 0, r.variable || 0, comis, r.pauta || 0,
-            total, cacCop, cacUsd
+            total, cacCop, cacUsd,
+            r.notes || ''
         ];
     });
 
