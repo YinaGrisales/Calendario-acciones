@@ -11,7 +11,8 @@ const MESES_LARGOS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","
 const MESES_CORTOS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 let TRM = 3700;
 let COMISION_BASE = 24900;
-let COMISION_POR_NP = COMISION_BASE * 1.55;
+let COMISION_PCT = 55;
+let COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
 
 // ── State ───────────────────────────────────────────────────
 const today = new Date();
@@ -78,9 +79,10 @@ function loadFromStorage() {
         if (cfgRaw) {
             const cfg = JSON.parse(cfgRaw);
             if (cfg.trm) TRM = cfg.trm;
+            if (cfg.comisionPct !== undefined) COMISION_PCT = cfg.comisionPct;
             if (cfg.comisionBase) COMISION_BASE = cfg.comisionBase;
-            else if (cfg.comisionPorNp) COMISION_BASE = Math.round(cfg.comisionPorNp / 1.55);
-            COMISION_POR_NP = COMISION_BASE * 1.55;
+            else if (cfg.comisionPorNp) COMISION_BASE = Math.round(cfg.comisionPorNp / (1 + COMISION_PCT / 100));
+            COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
         }
     } catch (err) {
         showToast('Error al cargar datos locales', 'error');
@@ -89,7 +91,7 @@ function loadFromStorage() {
 
 function saveConfigToStorage() {
     try {
-        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify({ trm: TRM, comisionBase: COMISION_BASE }));
+        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify({ trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT }));
     } catch (err) {
         showToast('Error al guardar configuración', 'error');
     }
@@ -526,8 +528,19 @@ function updateTRM(el) {
 function updateComisionBase(el) {
     const val = parseInt(String(el.value).replace(/\D/g, '')) || 0;
     COMISION_BASE = val;
-    COMISION_POR_NP = COMISION_BASE * 1.55;
+    COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
     el.value = fmtNum.format(val);
+    const resultEl = $('comision-result');
+    if (resultEl) resultEl.innerText = fmtCOP.format(COMISION_POR_NP);
+    saveConfigToStorage();
+    renderResultsTable();
+    updateResultStats();
+}
+
+function updateComisionPct(el) {
+    const val = parseFloat(el.value) || 0;
+    COMISION_PCT = val;
+    COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
     const resultEl = $('comision-result');
     if (resultEl) resultEl.innerText = fmtCOP.format(COMISION_POR_NP);
     saveConfigToStorage();
@@ -1294,7 +1307,7 @@ function exportJSON() {
         results,
         quarterProjections,
         quarterActualNps,
-        config: { trm: TRM, comisionBase: COMISION_BASE }
+        config: { trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT }
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1337,9 +1350,10 @@ function importJSON(evt) {
             }
             if (data.config) {
                 if (data.config.trm) TRM = data.config.trm;
+                if (data.config.comisionPct !== undefined) COMISION_PCT = data.config.comisionPct;
                 if (data.config.comisionBase) COMISION_BASE = data.config.comisionBase;
-                else if (data.config.comisionPorNp) COMISION_BASE = Math.round(data.config.comisionPorNp / 1.55);
-                COMISION_POR_NP = COMISION_BASE * 1.55;
+                else if (data.config.comisionPorNp) COMISION_BASE = Math.round(data.config.comisionPorNp / (1 + COMISION_PCT / 100));
+                COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
             }
 
             savePlanningToStorage();
@@ -1369,7 +1383,8 @@ function clearAllData() {
     quarterActualNps = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     TRM = 3700;
     COMISION_BASE = 24900;
-    COMISION_POR_NP = COMISION_BASE * 1.55;
+    COMISION_PCT = 55;
+    COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
     localStorage.removeItem(STORAGE_KEY_PLANNING);
     localStorage.removeItem(STORAGE_KEY_RESULTS);
     localStorage.removeItem(STORAGE_KEY_Q_PROJ);
@@ -1507,9 +1522,11 @@ function refreshViews() {
 function syncConfigInputs() {
     const trmEl = $('input-trm');
     const baseEl = $('input-comision-base');
+    const pctEl = $('input-comision-pct');
     const resultEl = $('comision-result');
     if (trmEl) trmEl.value = fmtNum.format(TRM);
     if (baseEl) baseEl.value = fmtNum.format(COMISION_BASE);
+    if (pctEl) pctEl.value = COMISION_PCT;
     if (resultEl) resultEl.innerText = fmtCOP.format(COMISION_POR_NP);
 }
 
