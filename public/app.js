@@ -1669,6 +1669,10 @@ function syncConfigInputs() {
     if (resultEl) resultEl.innerText = fmtCOP.format(COMISION_POR_NP);
 }
 
+function hasLocalData() {
+    return results.length > 0 || events.length > 0;
+}
+
 function init() {
     showLoading(true);
     loadFromStorage();
@@ -1686,7 +1690,10 @@ function init() {
             renderTabs();
             refreshViews();
             updateSyncIndicator('synced');
-            showToast('Datos actualizados desde la nube ☁', 'success');
+            showToast('Datos actualizados desde la nube', 'success');
+        } else if (hasLocalData()) {
+            saveToCloud();
+            showToast('Datos locales subidos a la nube', 'success');
         } else {
             updateSyncIndicator('synced');
         }
