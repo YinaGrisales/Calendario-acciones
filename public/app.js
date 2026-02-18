@@ -11,7 +11,8 @@ const MESES_LARGOS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","
 const MESES_CORTOS = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 let TRM = 3700;
 let COMISION_BASE = 24900;
-let COMISION_POR_NP = COMISION_BASE * 1.75;
+let COMISION_PCT = 55;
+let COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
 
 // ── State ───────────────────────────────────────────────────
 const today = new Date();
@@ -1675,28 +1676,40 @@ function hasLocalData() {
 
 function init() {
     showLoading(true);
-    loadFromStorage();
-    syncConfigInputs();
-    updateFilters();
-    renderTabs();
-    refreshViews();
+    try {
+        loadFromStorage();
+        syncConfigInputs();
+        updateFilters();
+        renderTabs();
+        refreshViews();
+    } catch (err) {
+        console.error('Error en init local:', err);
+    }
     showLoading(false);
 
     updateSyncIndicator('syncing');
     loadFromCloud().then(cloudLoaded => {
-        if (cloudLoaded) {
-            syncConfigInputs();
-            updateFilters();
-            renderTabs();
-            refreshViews();
-            updateSyncIndicator('synced');
-            showToast('Datos actualizados desde la nube', 'success');
-        } else if (hasLocalData()) {
-            saveToCloud();
-            showToast('Datos locales subidos a la nube', 'success');
-        } else {
-            updateSyncIndicator('synced');
+        try {
+            if (cloudLoaded) {
+                syncConfigInputs();
+                updateFilters();
+                renderTabs();
+                refreshViews();
+                updateSyncIndicator('synced');
+                showToast('Datos actualizados desde la nube', 'success');
+            } else if (hasLocalData()) {
+                saveToCloud();
+                showToast('Datos locales subidos a la nube', 'success');
+            } else {
+                updateSyncIndicator('synced');
+            }
+        } catch (err) {
+            console.error('Error al aplicar datos de nube:', err);
+            updateSyncIndicator('error');
         }
+    }).catch(err => {
+        console.error('Error de conexión:', err);
+        updateSyncIndicator('error');
     });
 }
 
