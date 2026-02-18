@@ -572,9 +572,10 @@ function updateResultStats() {
     const projSum = periodFil.reduce((acc, r) => {
         return acc + (r.confirmed ? 0 : (r.projectedNps || 0));
     }, 0);
-    const pInv = periodFil.reduce((acc, r) =>
-        acc + (r.fixed || 0) + (r.variable || 0) + (COMISION_POR_NP * (r.nps || 0)) + (r.pauta || 0), 0
-    );
+    const pInv = periodFil.reduce((acc, r) => {
+        const rowComis = r.hasCommission !== false ? COMISION_POR_NP * (r.nps || 0) : 0;
+        return acc + (r.fixed || 0) + (r.variable || 0) + rowComis + (r.pauta || 0);
+    }, 0);
 
     const isQFilter = ['Q1','Q2','Q3','Q4'].includes(currentResultPeriod);
     let displayNps = pNpsFromTable;
@@ -712,7 +713,7 @@ function renderDelta(actual, projected) {
 function updateCalculatedCells(id) {
     const row = results.find(r => r.id === id);
     if (!row) return;
-    const comis = COMISION_POR_NP * (row.nps || 0);
+    const comis = row.hasCommission !== false ? COMISION_POR_NP * (row.nps || 0) : 0;
     const total = (row.fixed || 0) + (row.variable || 0) + comis + (row.pauta || 0);
     const cac = row.nps > 0 ? Math.round(total / row.nps) : 0;
 
@@ -747,7 +748,7 @@ function renderResultsTable() {
     });
 
     body.innerHTML = filteredRows.map(row => {
-        const comis = COMISION_POR_NP * (row.nps || 0);
+        const comis = row.hasCommission !== false ? COMISION_POR_NP * (row.nps || 0) : 0;
         const total = (row.fixed || 0) + (row.variable || 0) + comis + (row.pauta || 0);
         const cac = row.nps > 0 ? Math.round(total / row.nps) : 0;
 
@@ -774,7 +775,15 @@ function renderResultsTable() {
             <td class="formula-col opacity-60 text-[7px] cvr-np-tr">${row.trials > 0 ? (row.nps/row.trials*100).toFixed(1)+'%' : '0%'}</td>
             <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.fixed)}" oninput="handleNumberInput(this, ${row.id}, 'fixed')" class="w-14 input-money"></div></td>
             <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.variable)}" oninput="handleNumberInput(this, ${row.id}, 'variable')" class="w-14 input-money"></div></td>
-            <td class="money-col text-[7px] cell-comis">${fmtCOP.format(comis)}</td>
+            <td class="text-[7px]">
+                <div class="flex flex-col items-center gap-0.5">
+                    <select onchange="toggleCommission(${row.id}, this.value)" class="text-[7px] font-bold border-none bg-transparent p-0 text-center cursor-pointer outline-none ${row.hasCommission !== false ? 'text-emerald-600' : 'text-slate-300'}">
+                        <option value="yes" ${row.hasCommission !== false ? 'selected' : ''}>Con comis.</option>
+                        <option value="no" ${row.hasCommission === false ? 'selected' : ''}>Sin comis.</option>
+                    </select>
+                    <span class="cell-comis font-bold ${row.hasCommission !== false ? 'money-col' : 'text-slate-300 line-through'}">${fmtCOP.format(comis)}</span>
+                </div>
+            </td>
             <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.pauta)}" oninput="handleNumberInput(this, ${row.id}, 'pauta')" class="w-14 input-money"></div></td>
             <td class="total-col text-[7px] cell-total">${fmtCOP.format(total)}</td>
             <td class="formula-col text-[7px] cell-cac-cop">${fmtCOP.format(cac)}</td>
@@ -806,6 +815,7 @@ function addResultRow() {
         fixed: 0, variable: 0, pauta: 0,
         projectedNps: 0,
         confirmed: false,
+        hasCommission: true,
         notes: ''
     });
     renderResultsTable();
@@ -818,6 +828,17 @@ function toggleConfirmed(id, checked) {
     const r = results.find(row => row.id === id);
     if (r) {
         r.confirmed = checked;
+        updateResultStats();
+        debouncedSaveResults();
+    }
+}
+
+function toggleCommission(id, val) {
+    const r = results.find(row => row.id === id);
+    if (r) {
+        r.hasCommission = val === 'yes';
+        updateCalculatedCells(id);
+        renderResultsTable();
         updateResultStats();
         debouncedSaveResults();
     }
@@ -1035,6 +1056,7 @@ function linkEventToResults(id) {
         fixed: 0, variable: 0, pauta: 0,
         projectedNps: e.projectedNps || 0,
         confirmed: false,
+        hasCommission: true,
         notes: ''
     });
     renderResultsTable();
@@ -1262,9 +1284,9 @@ function exportCSV() {
         return;
     }
 
-    const headers = ['Afiliado','Fecha','Tipo','WA_Group','Asistentes','Trials','NPs','Proy_NPs','Delta_NP','Confirmado','Fijo','Variable','Comisiones','Pauta','TOTAL_INV','CAC_COP','CAC_USD','Notas'];
+    const headers = ['Afiliado','Fecha','Tipo','WA_Group','Asistentes','Trials','NPs','Proy_NPs','Delta_NP','Confirmado','Con_Comision','Fijo','Variable','Comisiones','Pauta','TOTAL_INV','CAC_COP','CAC_USD','Notas'];
     const rows = results.map(r => {
-        const comis = COMISION_POR_NP * (r.nps || 0);
+        const comis = r.hasCommission !== false ? COMISION_POR_NP * (r.nps || 0) : 0;
         const total = (r.fixed || 0) + (r.variable || 0) + comis + (r.pauta || 0);
         const cacCop = r.nps > 0 ? Math.round(total / r.nps) : 0;
         const cacUsd = r.nps > 0 ? (total / r.nps / TRM).toFixed(2) : '0';
@@ -1273,6 +1295,7 @@ function exportCSV() {
             r.name, r.date, r.type,
             r.wa_group || 0, r.attendees || 0, r.trials || 0, r.nps || 0,
             r.projectedNps || 0, delta, r.confirmed ? 'Si' : 'No',
+            r.hasCommission !== false ? 'Si' : 'No',
             r.fixed || 0, r.variable || 0, comis, r.pauta || 0,
             total, cacCop, cacUsd,
             r.notes || ''
