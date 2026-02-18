@@ -23,6 +23,7 @@ let currentResultPeriod = 'all';
 let saveTimeout = null;
 
 let quarterProjections = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+let quarterActualNps = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
 
 let categories = {
     comunidad:    { label: "Comunidad",    members: ["Vivi Garcia", "Orange", "Tati Uribe"] },
@@ -38,6 +39,7 @@ let pendingAction = null;
 const STORAGE_KEY_PLANNING = 'hub2026_planning';
 const STORAGE_KEY_RESULTS  = 'hub2026_results';
 const STORAGE_KEY_Q_PROJ   = 'hub2026_q_projections';
+const STORAGE_KEY_Q_ACTUAL = 'hub2026_q_actual_nps';
 
 function loadFromStorage() {
     try {
@@ -62,6 +64,13 @@ function loadFromStorage() {
                 if (parsed[k] !== undefined) quarterProjections[k] = parsed[k];
             });
         }
+        const qActRaw = localStorage.getItem(STORAGE_KEY_Q_ACTUAL);
+        if (qActRaw) {
+            const parsed = JSON.parse(qActRaw);
+            Object.keys(quarterActualNps).forEach(k => {
+                if (parsed[k] !== undefined) quarterActualNps[k] = parsed[k];
+            });
+        }
     } catch (err) {
         showToast('Error al cargar datos locales', 'error');
     }
@@ -72,6 +81,14 @@ function saveQProjectionsToStorage() {
         localStorage.setItem(STORAGE_KEY_Q_PROJ, JSON.stringify(quarterProjections));
     } catch (err) {
         showToast('Error al guardar proyecciones', 'error');
+    }
+}
+
+function saveQActualToStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEY_Q_ACTUAL, JSON.stringify(quarterActualNps));
+    } catch (err) {
+        showToast('Error al guardar NPs reales', 'error');
     }
 }
 
@@ -459,7 +476,56 @@ function handleQProjectionInput(q, el) {
     const val = parseInt(el.value) || 0;
     quarterProjections[q] = val;
     saveQProjectionsToStorage();
-    updateResultStats();
+    updateQDelta(q);
+    updateTopStats();
+}
+
+function handleQActualInput(q, el) {
+    const val = parseInt(el.value) || 0;
+    quarterActualNps[q] = val;
+    saveQActualToStorage();
+    updateQDelta(q);
+    updateTopStats();
+}
+
+function updateQDelta(q) {
+    const deltaEl = document.querySelector(`[data-q-delta="${q}"]`);
+    if (!deltaEl) return;
+    const actual = quarterActualNps[q] || 0;
+    const proj = quarterProjections[q] || 0;
+    const delta = actual - proj;
+    const sign = delta > 0 ? '+' : '';
+    const cls = delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-500' : 'text-slate-300';
+    deltaEl.className = `text-[7px] font-bold ${cls} mt-0.5`;
+    deltaEl.innerText = `${sign}${delta}`;
+}
+
+function updateTopStats() {
+    const fil = results.filter(r =>
+        (currentAffiliateFilter === 'all' || r.name === currentAffiliateFilter) &&
+        (currentLeverFilter === 'all' || getAffiliateLever(r.name) === currentLeverFilter)
+    );
+    const periodFil = fil.filter(r => matchesPeriodFilter(r.date, currentResultPeriod));
+    const pNps = periodFil.reduce((acc, r) => acc + (r.nps || 0), 0);
+    const isQFilter = ['Q1','Q2','Q3','Q4'].includes(currentResultPeriod);
+
+    let displayNps = pNps;
+    let pProj = periodFil.reduce((acc, r) => acc + (r.projectedNps || 0), 0);
+    if (isQFilter) {
+        displayNps = quarterActualNps[currentResultPeriod] || 0;
+        pProj = quarterProjections[currentResultPeriod] || 0;
+    }
+
+    safeSet('res-stat-nps', displayNps);
+    safeSet('res-stat-proj', pProj);
+    const pDelta = displayNps - pProj;
+    const deltaEl = $('res-stat-delta');
+    if (deltaEl) {
+        const sign = pDelta > 0 ? '+' : '';
+        deltaEl.innerText = `${sign}${pDelta}`;
+        deltaEl.className = 'text-2xl font-black mt-0.5 ' +
+            (pDelta > 0 ? 'text-green-600' : pDelta < 0 ? 'text-red-500' : 'text-slate-400');
+    }
 }
 
 function getFilteredResults() {
@@ -477,28 +543,30 @@ function updateResultStats() {
     );
     const periodFil = fil.filter(r => matchesPeriodFilter(r.date, currentResultPeriod));
 
-    const pNps = periodFil.reduce((acc, r) => acc + (r.nps || 0), 0);
+    const pNpsFromTable = periodFil.reduce((acc, r) => acc + (r.nps || 0), 0);
     const pProjFromRows = periodFil.reduce((acc, r) => acc + (r.projectedNps || 0), 0);
     const pInv = periodFil.reduce((acc, r) =>
         acc + (r.fixed || 0) + (r.variable || 0) + (COMISION_POR_NP * (r.nps || 0)) + (r.pauta || 0), 0
     );
 
-    let pProj = pProjFromRows;
     const isQFilter = ['Q1','Q2','Q3','Q4'].includes(currentResultPeriod);
+    let displayNps = pNpsFromTable;
+    let pProj = pProjFromRows;
     if (isQFilter) {
+        displayNps = quarterActualNps[currentResultPeriod] || 0;
         pProj = quarterProjections[currentResultPeriod] || 0;
     }
 
     const labelEl = $('res-stat-nps-label');
     if (labelEl) {
         if (currentResultPeriod === 'all') labelEl.innerText = 'NPs Total';
-        else if (isQFilter) labelEl.innerText = `NPs ${currentResultPeriod}`;
+        else if (isQFilter) labelEl.innerText = `NPs Real ${currentResultPeriod}`;
         else labelEl.innerText = `NPs ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
     }
 
-    safeSet('res-stat-nps', pNps);
+    safeSet('res-stat-nps', displayNps);
     safeSet('res-stat-proj', pProj);
-    const pDelta = pNps - pProj;
+    const pDelta = displayNps - pProj;
     const deltaEl = $('res-stat-delta');
     if (deltaEl) {
         const sign = pDelta > 0 ? '+' : '';
@@ -523,22 +591,29 @@ function updateResultStats() {
     });
 
     safeHTML('res-stats-quarters', qs.map(q => {
+        const actual = quarterActualNps[q.id] || 0;
         const proj = quarterProjections[q.id] || 0;
-        const delta = q.n - proj;
+        const delta = actual - proj;
         const deltaSign = delta > 0 ? '+' : '';
         const deltaCls = delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-500' : 'text-slate-300';
         const isActive = currentResultPeriod === q.id;
         const ringCls = isActive ? 'ring-2 ring-violet-400 ring-inset' : '';
-        return `<div class="border-r last:border-0 pr-1 flex flex-col items-center cursor-pointer hover:bg-violet-50 rounded-lg py-1 transition-colors ${ringCls}" onclick="setResultPeriod('${q.id}')">
+        return `<div class="border-r last:border-0 px-1 flex flex-col items-center cursor-pointer hover:bg-violet-50 rounded-lg py-1 transition-colors ${ringCls}" onclick="setResultPeriod('${q.id}')">
             <p class="text-[7px] font-bold text-indigo-400 uppercase">${q.id}</p>
-            <span class="text-[11px] font-black text-slate-800">${q.n}</span>
+            <span class="text-[6px] text-slate-300 font-medium">Tabla: ${q.n}</span>
+            <div class="flex items-center gap-0.5 mt-0.5">
+                <span class="text-[6px] text-emerald-500 font-bold">Real:</span>
+                <input type="text" value="${actual}" onclick="event.stopPropagation()"
+                    onchange="handleQActualInput('${q.id}', this)"
+                    class="q-proj-input !border-emerald-300 !text-emerald-700 !bg-emerald-50 focus:!border-emerald-500">
+            </div>
             <div class="flex items-center gap-0.5 mt-0.5">
                 <span class="text-[6px] text-violet-400 font-bold">Meta:</span>
                 <input type="text" value="${proj}" onclick="event.stopPropagation()"
-                    oninput="this.value = this.value.replace(/\\D/g, ''); handleQProjectionInput('${q.id}', this)"
+                    onchange="handleQProjectionInput('${q.id}', this)"
                     class="q-proj-input">
             </div>
-            <span class="text-[7px] font-bold ${deltaCls} mt-0.5">${deltaSign}${delta}</span>
+            <span class="text-[7px] font-bold ${deltaCls} mt-0.5" data-q-delta="${q.id}">${deltaSign}${delta}</span>
         </div>`;
     }).join(''));
 
@@ -610,7 +685,7 @@ function renderResultsTable() {
         (currentAffiliateFilter === 'all' || row.name === currentAffiliateFilter) &&
         (currentLeverFilter === 'all' || getAffiliateLever(row.name) === currentLeverFilter) &&
         matchesPeriodFilter(row.date, currentResultPeriod)
-    );
+    ).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
     body.innerHTML = filteredRows.map(row => {
         const comis = COMISION_POR_NP * (row.nps || 0);
@@ -928,11 +1003,12 @@ function openBackupModal() {
 
 function exportJSON() {
     const data = {
-        version: '1.1',
+        version: '1.2',
         exportDate: new Date().toISOString(),
         planning: { events, categories },
         results,
-        quarterProjections
+        quarterProjections,
+        quarterActualNps
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -968,10 +1044,16 @@ function importJSON(evt) {
                     if (data.quarterProjections[k] !== undefined) quarterProjections[k] = data.quarterProjections[k];
                 });
             }
+            if (data.quarterActualNps) {
+                Object.keys(quarterActualNps).forEach(k => {
+                    if (data.quarterActualNps[k] !== undefined) quarterActualNps[k] = data.quarterActualNps[k];
+                });
+            }
 
             savePlanningToStorage();
             saveResultsToStorage();
             saveQProjectionsToStorage();
+            saveQActualToStorage();
             updateFilters();
             renderTabs();
             refreshViews();
@@ -990,9 +1072,11 @@ function clearAllData() {
     events = [];
     results = [];
     quarterProjections = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+    quarterActualNps = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     localStorage.removeItem(STORAGE_KEY_PLANNING);
     localStorage.removeItem(STORAGE_KEY_RESULTS);
     localStorage.removeItem(STORAGE_KEY_Q_PROJ);
+    localStorage.removeItem(STORAGE_KEY_Q_ACTUAL);
     updateFilters();
     renderTabs();
     refreshViews();
