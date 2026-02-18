@@ -379,11 +379,15 @@
                             class="bg-slate-800 border border-slate-700 rounded-lg text-[9px] font-bold text-white text-center w-16 py-1 px-1.5 outline-none focus:border-indigo-500 transition-colors">
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <span class="text-[8px] text-slate-500 font-bold uppercase">Comisión/NP:</span>
+                        <span class="text-[8px] text-slate-500 font-bold uppercase">Base:</span>
                         <span class="text-[8px] text-slate-500">$</span>
-                        <input type="text" id="input-comision" value="43.575"
-                            onchange="updateComisionPorNp(this)"
+                        <input type="text" id="input-comision-base" value="24.900"
+                            onchange="updateComisionBase(this)"
                             class="bg-slate-800 border border-slate-700 rounded-lg text-[9px] font-bold text-white text-center w-16 py-1 px-1.5 outline-none focus:border-indigo-500 transition-colors">
+                        <span class="text-[7px] text-slate-600 font-mono">×1 + ×75%</span>
+                        <span class="text-[7px] text-slate-500">=</span>
+                        <span class="text-[8px] text-indigo-400 font-bold" id="comision-result">$43.575</span>
+                        <span class="text-[7px] text-slate-600">/NP</span>
                     </div>
                     <span class="text-[8px] font-bold text-emerald-400 uppercase hidden" id="save-indicator">✓ Sincronizado</span>
                 </div>
