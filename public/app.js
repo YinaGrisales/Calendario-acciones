@@ -155,6 +155,13 @@ function showToast(message, type) {
 
 // ── Helpers ──────────────────────────────────────────────────
 function cacColor(usd) {
+    if (usd <= 0) return { text: 'text-slate-400', bg: 'bg-slate-50 border-slate-200', label: 'text-slate-400', detail: 'text-slate-300', badge: 'bg-slate-100 text-slate-500' };
+    if (usd <= 69) return { text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-300', label: 'text-emerald-600', detail: 'text-emerald-400', badge: 'bg-emerald-100 text-emerald-700' };
+    if (usd <= 81) return { text: 'text-amber-700', bg: 'bg-amber-50 border-amber-300', label: 'text-amber-600', detail: 'text-amber-400', badge: 'bg-amber-100 text-amber-700' };
+    return { text: 'text-red-700', bg: 'bg-red-50 border-red-300', label: 'text-red-600', detail: 'text-red-400', badge: 'bg-red-100 text-red-700' };
+}
+
+function cacTextColor(usd) {
     if (usd <= 0) return 'text-slate-400';
     if (usd <= 69) return 'text-emerald-600';
     if (usd <= 81) return 'text-amber-500';
@@ -567,10 +574,24 @@ function updateTopStats() {
     const cacNps = confirmedFil.reduce((acc, r) => acc + (r.nps || 0), 0);
     const topCacAcc = cacNps > 0 ? cacInv / cacNps / TRM : 0;
     const topCacGen = displayNps > 0 ? cacInv / displayNps / TRM : 0;
+    const cAcc = cacColor(topCacAcc);
+    const cGen = cacColor(topCacGen);
+    const cardAcc = $('res-cac-card-acc');
+    const cardGen = $('res-cac-card-gen');
+    if (cardAcc) cardAcc.className = `stat-card p-3 rounded-2xl border-2 flex flex-col items-center shadow-sm transition-colors ${cAcc.bg}`;
+    if (cardGen) cardGen.className = `stat-card p-3 rounded-2xl border-2 flex flex-col items-center shadow-sm transition-colors ${cGen.bg}`;
+    const elCacAccL = $('res-cac-acc-label');
+    const elCacGenL = $('res-cac-gen-label');
+    if (elCacAccL) elCacAccL.className = `text-[9px] font-bold uppercase tracking-wider ${cAcc.label}`;
+    if (elCacGenL) elCacGenL.className = `text-[9px] font-bold uppercase tracking-wider ${cGen.label}`;
     const elCacAcc = $('res-cac-acciones');
     const elCacGen = $('res-cac-general');
-    if (elCacAcc) { elCacAcc.innerText = fmtUSD.format(topCacAcc); elCacAcc.className = `text-2xl font-black mt-0.5 ${cacColor(topCacAcc)}`; }
-    if (elCacGen) { elCacGen.innerText = fmtUSD.format(topCacGen); elCacGen.className = `text-2xl font-black mt-0.5 ${cacColor(topCacGen)}`; }
+    if (elCacAcc) { elCacAcc.innerText = fmtUSD.format(topCacAcc); elCacAcc.className = `text-2xl font-black mt-0.5 ${cAcc.text}`; }
+    if (elCacGen) { elCacGen.innerText = fmtUSD.format(topCacGen); elCacGen.className = `text-2xl font-black mt-0.5 ${cGen.text}`; }
+    const elCacAccD = $('res-cac-acc-detail');
+    const elCacGenD = $('res-cac-gen-detail');
+    if (elCacAccD) elCacAccD.className = `text-[7px] mt-0.5 font-semibold ${cAcc.detail}`;
+    if (elCacGenD) elCacGenD.className = `text-[7px] mt-0.5 font-semibold ${cGen.detail}`;
 }
 
 function getFilteredResults() {
@@ -633,10 +654,24 @@ function updateResultStats() {
     const cacNpsAcc = confirmedPeriodFil.reduce((acc, r) => acc + (r.nps || 0), 0);
     const cacAcciones = cacNpsAcc > 0 ? cacInv / cacNpsAcc / TRM : 0;
     const cacGeneral = displayNps > 0 ? cacInv / displayNps / TRM : 0;
+    const cAcc2 = cacColor(cacAcciones);
+    const cGen2 = cacColor(cacGeneral);
+    const cardAcc2 = $('res-cac-card-acc');
+    const cardGen2 = $('res-cac-card-gen');
+    if (cardAcc2) cardAcc2.className = `stat-card p-3 rounded-2xl border-2 flex flex-col items-center shadow-sm transition-colors ${cAcc2.bg}`;
+    if (cardGen2) cardGen2.className = `stat-card p-3 rounded-2xl border-2 flex flex-col items-center shadow-sm transition-colors ${cGen2.bg}`;
+    const elCacAccL2 = $('res-cac-acc-label');
+    const elCacGenL2 = $('res-cac-gen-label');
+    if (elCacAccL2) elCacAccL2.className = `text-[9px] font-bold uppercase tracking-wider ${cAcc2.label}`;
+    if (elCacGenL2) elCacGenL2.className = `text-[9px] font-bold uppercase tracking-wider ${cGen2.label}`;
     const elCacAcc2 = $('res-cac-acciones');
     const elCacGen2 = $('res-cac-general');
-    if (elCacAcc2) { elCacAcc2.innerText = fmtUSD.format(cacAcciones); elCacAcc2.className = `text-2xl font-black mt-0.5 ${cacColor(cacAcciones)}`; }
-    if (elCacGen2) { elCacGen2.innerText = fmtUSD.format(cacGeneral); elCacGen2.className = `text-2xl font-black mt-0.5 ${cacColor(cacGeneral)}`; }
+    if (elCacAcc2) { elCacAcc2.innerText = fmtUSD.format(cacAcciones); elCacAcc2.className = `text-2xl font-black mt-0.5 ${cAcc2.text}`; }
+    if (elCacGen2) { elCacGen2.innerText = fmtUSD.format(cacGeneral); elCacGen2.className = `text-2xl font-black mt-0.5 ${cGen2.text}`; }
+    const elCacAccD2 = $('res-cac-acc-detail');
+    const elCacGenD2 = $('res-cac-gen-detail');
+    if (elCacAccD2) elCacAccD2.className = `text-[7px] mt-0.5 font-semibold ${cAcc2.detail}`;
+    if (elCacGenD2) elCacGenD2.className = `text-[7px] mt-0.5 font-semibold ${cGen2.detail}`;
 
     const cacAccLabel = $('res-cac-acc-label');
     const cacGenLabel = $('res-cac-gen-label');
@@ -721,8 +756,8 @@ function updateResultStats() {
                 <span class="text-xs font-bold ${deltaTPcls}" data-q-faltan-proy="${q.id}">Tab+Proy vs Meta: ${deltaTPtxt}</span>
             </div>
             <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-0.5">
-                <span class="text-[8px] font-bold ${cacColor(cacAccQ)}">CAC Acc: ${fmtUSD.format(cacAccQ)}</span>
-                <span class="text-[8px] font-bold ${cacColor(cacGenQ)}">CAC Gen: ${fmtUSD.format(cacGenQ)}</span>
+                <span class="text-[8px] font-bold px-2 py-0.5 rounded-md ${cacColor(cacAccQ).badge}">CAC Acc: ${fmtUSD.format(cacAccQ)}</span>
+                <span class="text-[8px] font-bold px-2 py-0.5 rounded-md ${cacColor(cacGenQ).badge}">CAC Gen: ${fmtUSD.format(cacGenQ)}</span>
             </div>
         </div>`;
     }).join(''));
@@ -795,7 +830,7 @@ function updateCalculatedCells(id) {
     if (cacUsdEl) {
         const cacUsdVal = cac / TRM;
         cacUsdEl.innerText = fmtUSD.format(cacUsdVal);
-        cacUsdEl.className = `formula-col text-[7px] cell-cac-usd font-bold ${cacColor(cacUsdVal)}`;
+        cacUsdEl.className = `formula-col text-[7px] cell-cac-usd font-bold ${cacTextColor(cacUsdVal)}`;
     }
 }
 
@@ -854,7 +889,7 @@ function renderResultsTable() {
             <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.pauta)}" oninput="handleNumberInput(this, ${row.id}, 'pauta')" class="w-14 input-money"></div></td>
             <td class="total-col text-[7px] cell-total">${fmtCOP.format(total)}</td>
             <td class="formula-col text-[7px] cell-cac-cop">${fmtCOP.format(cac)}</td>
-            <td class="formula-col text-[7px] cell-cac-usd font-bold ${cacColor(cac / TRM)}">${fmtUSD.format(cac / TRM)}</td>
+            <td class="formula-col text-[7px] cell-cac-usd font-bold ${cacTextColor(cac / TRM)}">${fmtUSD.format(cac / TRM)}</td>
             <td class="cursor-pointer" onclick="openNoteModal(${row.id})">
                 <div class="w-24 text-[9px] text-slate-400 italic truncate hover:text-indigo-500 transition-colors" title="${escapeHTML(row.notes || '')}">${row.notes ? escapeHTML(row.notes).substring(0, 20) + (row.notes.length > 20 ? '...' : '') : '<span class=&quot;text-slate-200&quot;>+ nota</span>'}</div>
             </td>
