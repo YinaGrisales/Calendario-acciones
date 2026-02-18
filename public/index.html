@@ -218,21 +218,22 @@
 
             <!-- Stats row -->
             <div class="grid grid-cols-4 md:grid-cols-12 gap-2">
-                <div class="md:col-span-3 grid grid-cols-2 gap-2">
+                <div class="md:col-span-2 grid grid-cols-2 gap-2">
                     <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
-                        <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Clases</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Clases</span>
                         <span class="text-2xl font-black text-green-600 mt-0.5" id="stat-clases">0</span>
                     </div>
                     <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
-                        <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Contenido</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contenido</span>
                         <span class="text-2xl font-black text-amber-600 mt-0.5" id="stat-contenido">0</span>
                     </div>
                 </div>
-                <div class="md:col-span-6 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                    <div class="grid grid-cols-4 gap-1 text-center" id="stats-quarters"></div>
+                <div class="md:col-span-5 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                    <div class="grid grid-cols-4 gap-2 text-center" id="stats-quarters"></div>
                 </div>
-                <div class="md:col-span-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                    <div id="stats-levers" class="flex gap-2 overflow-x-auto scrollbar-hide px-1 justify-center"></div>
+                <div class="md:col-span-5 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-2">Afiliados activos por palanca</p>
+                    <div id="stats-levers" class="grid grid-cols-2 gap-2"></div>
                 </div>
             </div>
 
@@ -261,31 +262,33 @@
 
         <!-- VIEW: RESULTADOS -->
         <section id="view-results" class="hidden space-y-3">
-            <!-- Result stats -->
+            <!-- Result stats row 1: NPs + Proy + Delta + Inversión -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider" id="res-stat-nps-label">NPs Periodo</span>
+                    <span class="text-2xl font-black text-indigo-600 mt-0.5" id="res-stat-nps">0</span>
+                </div>
+                <div class="stat-card bg-white p-3 rounded-2xl border border-violet-100 flex flex-col items-center shadow-sm">
+                    <span class="text-[9px] font-bold text-violet-400 uppercase tracking-wider">Proy. NPs</span>
+                    <span class="text-2xl font-black text-violet-600 mt-0.5" id="res-stat-proj">0</span>
+                </div>
+                <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Δ Total</span>
+                    <span class="text-2xl font-black mt-0.5" id="res-stat-delta">0</span>
+                </div>
+                <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Inversión</span>
+                    <span class="text-lg font-black text-slate-700 mt-1" id="res-stat-inv">$0</span>
+                </div>
+            </div>
+
+            <!-- Result stats row 2: Q cards + Palancas -->
             <div class="grid grid-cols-1 md:grid-cols-12 gap-2">
-                <div class="md:col-span-3 grid grid-cols-3 gap-2">
-                    <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
-                        <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider" id="res-stat-nps-label">NPs Periodo</span>
-                        <span class="text-2xl font-black text-indigo-600 mt-0.5" id="res-stat-nps">0</span>
-                    </div>
-                    <div class="stat-card bg-white p-3 rounded-2xl border border-violet-100 flex flex-col items-center shadow-sm">
-                        <span class="text-[7px] font-bold text-violet-400 uppercase tracking-wider">Proy. NPs</span>
-                        <span class="text-2xl font-black text-violet-600 mt-0.5" id="res-stat-proj">0</span>
-                    </div>
-                    <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
-                        <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Δ Total</span>
-                        <span class="text-2xl font-black mt-0.5" id="res-stat-delta">0</span>
-                    </div>
+                <div class="md:col-span-8 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                    <div class="grid grid-cols-4 gap-2 text-center" id="res-stats-quarters"></div>
                 </div>
-                <div class="md:col-span-2 stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center justify-center shadow-sm">
-                    <span class="text-[7px] font-bold text-slate-400 uppercase tracking-wider">Inversión</span>
-                    <span class="text-[10px] font-black text-slate-700 mt-1" id="res-stat-inv">$0</span>
-                </div>
-                <div class="md:col-span-4 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                    <div class="grid grid-cols-4 gap-1 text-center" id="res-stats-quarters"></div>
-                </div>
-                <div class="md:col-span-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                    <div id="res-stats-levers" class="flex gap-1.5 overflow-x-auto scrollbar-hide px-1 justify-center mt-1"></div>
+                <div class="md:col-span-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                    <div id="res-stats-levers" class="grid grid-cols-2 gap-2"></div>
                 </div>
             </div>
 

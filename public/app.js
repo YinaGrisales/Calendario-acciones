@@ -267,6 +267,13 @@ function applyFilter() {
     refreshViews();
 }
 
+function toggleLeverFilter(k) {
+    currentLeverFilter = currentLeverFilter === k ? 'all' : k;
+    const ls = $('filter-lever');
+    if (ls) ls.value = currentLeverFilter;
+    refreshViews();
+}
+
 function toggleTypeFilter(t) {
     if (t === 'all') {
         currentTypeFilters = ['all'];
@@ -417,10 +424,10 @@ function updateStats() {
     });
 
     safeHTML('stats-quarters', qs.map(q =>
-        `<div class="border-r last:border-0 pr-1 flex flex-col items-center">
-            <p class="text-[7px] font-bold text-indigo-400 uppercase mb-0.5">${q.id}</p>
-            <span class="text-[10px] font-black text-slate-800">${q.cl}<span class="text-slate-300 font-medium">/</span>${q.ct}</span>
-            <span class="text-[6px] text-slate-300 font-medium">cl/cont</span>
+        `<div class="flex flex-col items-center py-2 px-1 rounded-lg hover:bg-indigo-50 transition-colors">
+            <p class="text-xs font-black text-indigo-500 uppercase tracking-wide">${q.id}</p>
+            <span class="text-xl font-black text-slate-800 mt-1">${q.cl}<span class="text-slate-300 font-medium mx-0.5">/</span>${q.ct}</span>
+            <span class="text-[10px] text-slate-400 font-medium mt-0.5">clases / contenido</span>
         </div>`
     ).join(''));
 
@@ -428,12 +435,14 @@ function updateStats() {
     Object.keys(categories).forEach(k => lCt[k] = new Set());
     mEvs.forEach(e => { const l = getAffiliateLever(e.affiliate); if (l) lCt[l].add(e.affiliate); });
 
+    const calLeverColors = { comunidad: '#6366f1', tradicional: '#f59e0b', alianza: '#10b981', dropshipping: '#f43f5e' };
     safeHTML('stats-levers', Object.entries(categories).map(([k, c]) => {
         const dim = currentLeverFilter !== 'all' && currentLeverFilter !== k ? 'opacity-20 grayscale' : '';
-        return `<div class="flex flex-col items-center min-w-[40px] ${dim}">
-            <span class="text-[6px] font-semibold text-slate-400 uppercase tracking-tighter mb-0.5">${c.label.substring(0,5)}</span>
-            <span class="text-sm font-black text-indigo-600">${lCt[k].size}</span>
-            <span class="text-[5px] text-slate-300">activos</span>
+        const clr = c.color || calLeverColors[k] || '#6366f1';
+        return `<div class="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-50 ${dim}">
+            <div class="w-3 h-3 rounded-full flex-shrink-0" style="background:${clr}"></div>
+            <span class="text-xs font-bold text-slate-700 truncate">${c.label}</span>
+            <span class="text-lg font-black text-indigo-600 ml-auto">${lCt[k].size}</span>
         </div>`;
     }).join(''));
 }
@@ -497,10 +506,10 @@ function updateQDelta(q) {
     const delta = actual - proj;
     const sign = delta > 0 ? '+' : '';
     const cls = delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-500' : 'text-slate-300';
-    deltaEl.className = `text-[7px] font-bold ${cls}`;
+    deltaEl.className = `text-sm font-black mt-1.5 ${cls}`;
     deltaEl.innerText = `${sign}${delta}`;
     if (faltanEl) {
-        faltanEl.className = `text-[6px] font-bold mt-0.5 ${delta < 0 ? 'text-amber-500' : 'text-emerald-500'}`;
+        faltanEl.className = `text-xs font-bold mt-1 ${delta < 0 ? 'text-amber-500' : 'text-emerald-500'}`;
         faltanEl.innerText = delta < 0 ? 'Faltan: ' + Math.abs(delta) : 'Meta cumplida';
     }
 }
@@ -603,23 +612,25 @@ function updateResultStats() {
         const deltaCls = delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-500' : 'text-slate-300';
         const isActive = currentResultPeriod === q.id;
         const ringCls = isActive ? 'ring-2 ring-violet-400 ring-inset' : '';
-        return `<div class="border-r last:border-0 px-1 flex flex-col items-center cursor-pointer hover:bg-violet-50 rounded-lg py-1 transition-colors ${ringCls}" onclick="setResultPeriod('${q.id}')">
-            <p class="text-[7px] font-bold text-indigo-400 uppercase">${q.id}</p>
-            <span class="text-[6px] text-slate-300 font-medium">Tabla: ${q.n}</span>
-            <div class="flex items-center gap-0.5 mt-0.5">
-                <span class="text-[6px] text-emerald-500 font-bold">Real:</span>
+        const faltanCls = delta < 0 ? 'text-amber-500' : 'text-emerald-500';
+        const faltanTxt = delta < 0 ? 'Faltan: ' + Math.abs(delta) : 'Meta cumplida';
+        return `<div class="flex flex-col items-center cursor-pointer hover:bg-violet-50 rounded-xl p-3 transition-colors ${ringCls} border border-slate-100" onclick="setResultPeriod('${q.id}')">
+            <p class="text-sm font-black text-indigo-500 uppercase tracking-wide">${q.id}</p>
+            <span class="text-xs text-slate-400 font-medium mt-1">Tabla: ${q.n}</span>
+            <div class="flex items-center gap-1.5 mt-2">
+                <span class="text-xs text-emerald-500 font-bold">Real:</span>
                 <input type="text" value="${actual}" onclick="event.stopPropagation()"
                     onchange="handleQActualInput('${q.id}', this)"
-                    class="q-proj-input !border-emerald-300 !text-emerald-700 !bg-emerald-50 focus:!border-emerald-500">
+                    class="w-16 text-center text-sm font-bold rounded-lg border border-emerald-300 text-emerald-700 bg-emerald-50 focus:border-emerald-500 focus:outline-none px-2 py-1">
             </div>
-            <div class="flex items-center gap-0.5 mt-0.5">
-                <span class="text-[6px] text-violet-400 font-bold">Meta:</span>
+            <div class="flex items-center gap-1.5 mt-1.5">
+                <span class="text-xs text-violet-500 font-bold">Meta:</span>
                 <input type="text" value="${proj}" onclick="event.stopPropagation()"
                     onchange="handleQProjectionInput('${q.id}', this)"
-                    class="q-proj-input">
+                    class="w-16 text-center text-sm font-bold rounded-lg border border-violet-300 text-violet-700 bg-violet-50 focus:border-violet-500 focus:outline-none px-2 py-1">
             </div>
-            <span class="text-[7px] font-bold ${deltaCls}" data-q-delta="${q.id}">${deltaSign}${delta}</span>
-            <span class="text-[6px] font-bold mt-0.5 ${delta < 0 ? 'text-amber-500' : 'text-emerald-500'}" data-q-faltan="${q.id}">${delta < 0 ? 'Faltan: ' + Math.abs(delta) : 'Meta cumplida'}</span>
+            <span class="text-sm font-black mt-1.5 ${deltaCls}" data-q-delta="${q.id}">${deltaSign}${delta}</span>
+            <span class="text-xs font-bold mt-1 ${faltanCls}" data-q-faltan="${q.id}">${faltanTxt}</span>
         </div>`;
     }).join(''));
 
@@ -627,12 +638,19 @@ function updateResultStats() {
     Object.keys(categories).forEach(k => lNps[k] = 0);
     periodFil.forEach(r => { const l = getAffiliateLever(r.name); if (l) lNps[l] += (r.nps || 0); });
 
+    const leverColors = { comunidad: '#6366f1', tradicional: '#f59e0b', alianza: '#10b981', dropshipping: '#f43f5e' };
     safeHTML('res-stats-levers', Object.entries(categories).map(([k, c]) => {
-        const dim = currentLeverFilter !== 'all' && currentLeverFilter !== k ? 'opacity-20 grayscale' : '';
-        return `<div class="flex flex-col items-center min-w-[40px] ${dim}">
-            <span class="text-[6px] font-semibold text-slate-400 uppercase tracking-tighter">${c.label.substring(0,5)}</span>
-            <span class="text-sm font-black text-indigo-600">${lNps[k]}</span>
-            <span class="text-[5px] text-slate-300">NPs</span>
+        const dim = currentLeverFilter !== 'all' && currentLeverFilter !== k ? 'opacity-30 grayscale' : '';
+        const active = currentLeverFilter === k ? 'ring-2 ring-indigo-400' : '';
+        const count = periodFil.filter(r => getAffiliateLever(r.name) === k).length;
+        const clr = c.color || leverColors[k] || '#6366f1';
+        return `<div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 cursor-pointer hover:bg-indigo-50 transition-all ${dim} ${active}" onclick="toggleLeverFilter('${k}')">
+            <div class="w-3 h-3 rounded-full flex-shrink-0" style="background:${clr}"></div>
+            <div class="flex flex-col min-w-0 flex-1">
+                <span class="text-xs font-bold text-slate-700 uppercase tracking-wide truncate">${c.label}</span>
+                <span class="text-[10px] text-slate-400">${count} acciones</span>
+            </div>
+            <span class="text-lg font-black text-indigo-600">${lNps[k]}<span class="text-[9px] text-slate-400 font-medium ml-0.5">NPs</span></span>
         </div>`;
     }).join(''));
 }
