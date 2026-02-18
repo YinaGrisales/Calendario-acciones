@@ -500,39 +500,30 @@ function handleQActualInput(q, el) {
 function updateQDelta(q) {
     const faltanRealEl = document.querySelector(`[data-q-faltan-real="${q}"]`);
     const faltanProyEl = document.querySelector(`[data-q-faltan-proy="${q}"]`);
-    const raEl = document.querySelector(`[data-q-ra="${q}"]`);
     if (!faltanRealEl) return;
 
-    const actual = quarterActualNps[q] || 0;
+    const tableau = quarterActualNps[q] || 0;
     const meta = quarterProjections[q] || 0;
 
     const qMonths = { Q1: [0,1,2], Q2: [3,4,5], Q3: [6,7,8], Q4: [9,10,11] };
-    let npsAcciones = 0;
-    let smartProjQ = 0;
+    let projQ = 0;
     results.forEach(r => {
-        if (r.date) {
+        if (r.date && !r.confirmed) {
             const m = new Date(r.date.replace(/-/g,'/')).getMonth();
-            if (qMonths[q].includes(m)) {
-                npsAcciones += (r.nps || 0);
-                smartProjQ += r.confirmed ? (r.nps || 0) : (r.projectedNps || 0);
-            }
+            if (qMonths[q].includes(m)) projQ += (r.projectedNps || 0);
         }
     });
 
-    const realPlusAcc = actual + npsAcciones;
-    const deltaRA = realPlusAcc - meta;
-    const deltaProy = smartProjQ - realPlusAcc;
-
-    if (raEl) raEl.innerText = 'Real+Acc: ' + realPlusAcc;
-
-    faltanRealEl.className = `text-xs font-bold ${deltaRA < 0 ? 'text-red-500' : 'text-emerald-500'}`;
-    faltanRealEl.innerText = 'R+A vs Meta: ' + (deltaRA < 0 ? 'Faltan: ' + Math.abs(deltaRA) : 'Cumplida');
+    const deltaTvM = tableau - meta;
+    faltanRealEl.className = `text-xs font-bold ${deltaTvM < 0 ? 'text-red-500' : 'text-emerald-500'}`;
+    faltanRealEl.innerText = 'Tableau vs Meta: ' + (deltaTvM < 0 ? 'Faltan: ' + Math.abs(deltaTvM) : 'Cumplida');
 
     if (faltanProyEl) {
-        const cls = deltaProy > 0 ? 'text-violet-500' : deltaProy < 0 ? 'text-amber-500' : 'text-slate-400';
-        const sign = deltaProy > 0 ? '+' : '';
+        const deltaTvP = tableau - projQ;
+        const cls = deltaTvP > 0 ? 'text-emerald-500' : deltaTvP < 0 ? 'text-amber-500' : 'text-slate-400';
+        const sign = deltaTvP > 0 ? '+' : '';
         faltanProyEl.className = `text-xs font-bold ${cls}`;
-        faltanProyEl.innerText = `Proy vs R+A: ${sign}${deltaProy}`;
+        faltanProyEl.innerText = `Tableau vs Proy: ${sign}${deltaTvP}`;
     }
 }
 
@@ -552,14 +543,13 @@ function updateTopStats() {
         displayNps = (quarterActualNps.Q1 || 0) + (quarterActualNps.Q2 || 0) + (quarterActualNps.Q3 || 0) + (quarterActualNps.Q4 || 0);
     }
 
-    const smartProj = periodFil.reduce((acc, r) => {
-        return acc + (r.confirmed ? (r.nps || 0) : (r.projectedNps || 0));
+    const projSum = periodFil.reduce((acc, r) => {
+        return acc + (r.confirmed ? 0 : (r.projectedNps || 0));
     }, 0);
 
     safeSet('res-stat-nps', displayNps);
     safeSet('res-stat-nps-acciones', pNps);
-    safeSet('res-stat-nps-total', displayNps + pNps);
-    safeSet('res-stat-proj', smartProj);
+    safeSet('res-stat-proj', projSum);
 }
 
 function getFilteredResults() {
@@ -578,8 +568,8 @@ function updateResultStats() {
     const periodFil = fil.filter(r => matchesPeriodFilter(r.date, currentResultPeriod));
 
     const pNpsFromTable = periodFil.reduce((acc, r) => acc + (r.nps || 0), 0);
-    const smartProj = periodFil.reduce((acc, r) => {
-        return acc + (r.confirmed ? (r.nps || 0) : (r.projectedNps || 0));
+    const projSum = periodFil.reduce((acc, r) => {
+        return acc + (r.confirmed ? 0 : (r.projectedNps || 0));
     }, 0);
     const pInv = periodFil.reduce((acc, r) =>
         acc + (r.fixed || 0) + (r.variable || 0) + (COMISION_POR_NP * (r.nps || 0)) + (r.pauta || 0), 0
@@ -595,15 +585,14 @@ function updateResultStats() {
 
     const labelEl = $('res-stat-nps-label');
     if (labelEl) {
-        if (currentResultPeriod === 'all') labelEl.innerText = 'NPs Real Total';
-        else if (isQFilter) labelEl.innerText = `NPs Real ${currentResultPeriod}`;
-        else labelEl.innerText = `NPs Real ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
+        if (currentResultPeriod === 'all') labelEl.innerText = 'NPs Tableau Total';
+        else if (isQFilter) labelEl.innerText = `NPs Tableau ${currentResultPeriod}`;
+        else labelEl.innerText = `NPs Tableau ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
     }
 
     safeSet('res-stat-nps', displayNps);
     safeSet('res-stat-nps-acciones', pNpsFromTable);
-    safeSet('res-stat-nps-total', displayNps + pNpsFromTable);
-    safeSet('res-stat-proj', smartProj);
+    safeSet('res-stat-proj', projSum);
     safeSet('res-stat-inv', fmtCOP.format(pInv));
 
     const qs = [
@@ -620,37 +609,35 @@ function updateResultStats() {
         }
     });
 
-    const qSmartProj = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+    const qProj = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     fil.forEach(r => {
-        if (r.date) {
+        if (r.date && !r.confirmed) {
             const m = new Date(r.date.replace(/-/g,'/')).getMonth();
             const qId = m < 3 ? 'Q1' : m < 6 ? 'Q2' : m < 9 ? 'Q3' : 'Q4';
-            qSmartProj[qId] += r.confirmed ? (r.nps || 0) : (r.projectedNps || 0);
+            qProj[qId] += (r.projectedNps || 0);
         }
     });
 
     safeHTML('res-stats-quarters', qs.map(q => {
-        const actual = quarterActualNps[q.id] || 0;
+        const tableau = quarterActualNps[q.id] || 0;
         const meta = quarterProjections[q.id] || 0;
-        const npsAcciones = q.n;
-        const realPlusAcc = actual + npsAcciones;
-        const smartProjQ = qSmartProj[q.id] || 0;
+        const projQ = qProj[q.id] || 0;
 
-        const deltaRA = realPlusAcc - meta;
-        const deltaRAcls = deltaRA < 0 ? 'text-red-500' : 'text-emerald-500';
-        const deltaRAtxt = deltaRA < 0 ? 'Faltan: ' + Math.abs(deltaRA) : 'Cumplida';
+        const deltaTvM = tableau - meta;
+        const deltaTvMcls = deltaTvM < 0 ? 'text-red-500' : 'text-emerald-500';
+        const deltaTvMtxt = deltaTvM < 0 ? 'Faltan: ' + Math.abs(deltaTvM) : 'Cumplida';
 
-        const deltaProy = smartProjQ - realPlusAcc;
-        const deltaProyCls = deltaProy > 0 ? 'text-violet-500' : deltaProy < 0 ? 'text-amber-500' : 'text-slate-400';
-        const deltProySign = deltaProy > 0 ? '+' : '';
+        const deltaTvP = tableau - projQ;
+        const deltaTvPcls = deltaTvP > 0 ? 'text-emerald-500' : deltaTvP < 0 ? 'text-amber-500' : 'text-slate-400';
+        const deltaTvPsign = deltaTvP > 0 ? '+' : '';
 
         const isActive = currentResultPeriod === q.id;
         const ringCls = isActive ? 'ring-2 ring-violet-400 ring-inset' : '';
         return `<div class="flex flex-col items-center cursor-pointer hover:bg-violet-50 rounded-xl p-3 transition-colors ${ringCls} border border-slate-100" onclick="setResultPeriod('${q.id}')">
             <p class="text-sm font-black text-indigo-500 uppercase tracking-wide">${q.id}</p>
             <div class="flex items-center gap-1.5 mt-2">
-                <span class="text-xs text-emerald-500 font-bold">Real:</span>
-                <input type="text" value="${actual}" onclick="event.stopPropagation()"
+                <span class="text-xs text-emerald-500 font-bold">Tableau:</span>
+                <input type="text" value="${tableau}" onclick="event.stopPropagation()"
                     onchange="handleQActualInput('${q.id}', this)"
                     class="w-16 text-center text-sm font-bold rounded-lg border border-emerald-300 text-emerald-700 bg-emerald-50 focus:border-emerald-500 focus:outline-none px-2 py-1">
             </div>
@@ -660,10 +647,9 @@ function updateResultStats() {
                     onchange="handleQProjectionInput('${q.id}', this)"
                     class="w-16 text-center text-sm font-bold rounded-lg border border-violet-300 text-violet-700 bg-violet-50 focus:border-violet-500 focus:outline-none px-2 py-1">
             </div>
-            <span class="text-xs text-amber-500 font-bold mt-1.5" data-q-ra="${q.id}">Real+Acc: ${realPlusAcc}</span>
-            <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-0.5">
-                <span class="text-xs font-bold ${deltaRAcls}" data-q-faltan-real="${q.id}">R+A vs Meta: ${deltaRAtxt}</span>
-                <span class="text-xs font-bold ${deltaProyCls}" data-q-faltan-proy="${q.id}">Proy vs R+A: ${deltProySign}${deltaProy}</span>
+            <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-1">
+                <span class="text-xs font-bold ${deltaTvMcls}" data-q-faltan-real="${q.id}">Tableau vs Meta: ${deltaTvMtxt}</span>
+                <span class="text-xs font-bold ${deltaTvPcls}" data-q-faltan-proy="${q.id}">Tableau vs Proy: ${deltaTvPsign}${deltaTvP}</span>
             </div>
         </div>`;
     }).join(''));
