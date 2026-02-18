@@ -490,14 +490,19 @@ function handleQActualInput(q, el) {
 
 function updateQDelta(q) {
     const deltaEl = document.querySelector(`[data-q-delta="${q}"]`);
+    const faltanEl = document.querySelector(`[data-q-faltan="${q}"]`);
     if (!deltaEl) return;
     const actual = quarterActualNps[q] || 0;
     const proj = quarterProjections[q] || 0;
     const delta = actual - proj;
     const sign = delta > 0 ? '+' : '';
     const cls = delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-500' : 'text-slate-300';
-    deltaEl.className = `text-[7px] font-bold ${cls} mt-0.5`;
+    deltaEl.className = `text-[7px] font-bold ${cls}`;
     deltaEl.innerText = `${sign}${delta}`;
+    if (faltanEl) {
+        faltanEl.className = `text-[6px] font-bold mt-0.5 ${delta < 0 ? 'text-amber-500' : 'text-emerald-500'}`;
+        faltanEl.innerText = delta < 0 ? 'Faltan: ' + Math.abs(delta) : 'Meta cumplida';
+    }
 }
 
 function updateTopStats() {
@@ -613,7 +618,8 @@ function updateResultStats() {
                     onchange="handleQProjectionInput('${q.id}', this)"
                     class="q-proj-input">
             </div>
-            <span class="text-[7px] font-bold ${deltaCls} mt-0.5" data-q-delta="${q.id}">${deltaSign}${delta}</span>
+            <span class="text-[7px] font-bold ${deltaCls}" data-q-delta="${q.id}">${deltaSign}${delta}</span>
+            <span class="text-[6px] font-bold mt-0.5 ${delta < 0 ? 'text-amber-500' : 'text-emerald-500'}" data-q-faltan="${q.id}">${delta < 0 ? 'Faltan: ' + Math.abs(delta) : 'Meta cumplida'}</span>
         </div>`;
     }).join(''));
 
@@ -719,8 +725,9 @@ function renderResultsTable() {
             <td class="total-col text-[7px] cell-total">${fmtCOP.format(total)}</td>
             <td class="formula-col text-[7px] cell-cac-cop">${fmtCOP.format(cac)}</td>
             <td class="formula-col text-indigo-600 text-[7px] cell-cac-usd">${fmtUSD.format(cac / TRM)}</td>
-            <td><input type="text" value="${escapeHTML(row.notes || '')}" onchange="updateResultValue(${row.id}, 'notes', this.value)"
-                class="w-24 text-[9px] text-slate-500 border-none bg-transparent p-0 focus:ring-0 italic" placeholder="..."></td>
+            <td class="cursor-pointer" onclick="openNoteModal(${row.id})">
+                <div class="w-24 text-[9px] text-slate-400 italic truncate hover:text-indigo-500 transition-colors" title="${escapeHTML(row.notes || '')}">${row.notes ? escapeHTML(row.notes).substring(0, 20) + (row.notes.length > 20 ? '...' : '') : '<span class=&quot;text-slate-200&quot;>+ nota</span>'}</div>
+            </td>
             <td>
                 <button onclick="deleteResultRow(${row.id})" class="text-slate-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 text-sm font-bold">×</button>
             </td>
@@ -773,6 +780,35 @@ function updateResultValue(id, field, val) {
     }
     updateResultStats();
     debouncedSaveResults();
+}
+
+// ── Notes Modal ─────────────────────────────────────────────
+let pendingNoteRowId = null;
+
+function openNoteModal(id) {
+    pendingNoteRowId = id;
+    const row = results.find(r => r.id === id);
+    if (!row) return;
+    const title = $('modal-notes-title');
+    if (title) title.innerText = row.name ? `Notas — ${row.name}` : 'Notas';
+    const ta = $('modal-notes-textarea');
+    if (ta) ta.value = row.notes || '';
+    openModal('modal-notes');
+    setTimeout(() => { if (ta) ta.focus(); }, 100);
+}
+
+function saveNoteFromModal() {
+    if (pendingNoteRowId === null) return;
+    const ta = $('modal-notes-textarea');
+    const val = ta ? ta.value : '';
+    const row = results.find(r => r.id === pendingNoteRowId);
+    if (row) {
+        row.notes = val;
+        debouncedSaveResults();
+        renderResultsTable();
+    }
+    closeModal('modal-notes');
+    pendingNoteRowId = null;
 }
 
 // ── Event CRUD ──────────────────────────────────────────────
@@ -988,14 +1024,14 @@ function closeModal(id) {
 // Close modals with Escape key
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-        const modals = ['modal-event', 'modal-link', 'modal-settings', 'modal-action-choice', 'modal-backup', 'modal-gsheet-import'];
+        const modals = ['modal-event', 'modal-link', 'modal-settings', 'modal-action-choice', 'modal-backup', 'modal-gsheet-import', 'modal-notes'];
         modals.forEach(id => closeModal(id));
     }
 });
 
 // Close modals when clicking backdrop
 document.addEventListener('click', (e) => {
-    const modals = ['modal-event', 'modal-link', 'modal-settings', 'modal-action-choice', 'modal-backup', 'modal-gsheet-import'];
+    const modals = ['modal-event', 'modal-link', 'modal-settings', 'modal-action-choice', 'modal-backup', 'modal-gsheet-import', 'modal-notes'];
     modals.forEach(id => {
         const el = $(id);
         if (el && e.target === el) closeModal(id);

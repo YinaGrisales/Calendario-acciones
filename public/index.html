@@ -449,6 +449,18 @@
         </div>
     </div>
 
+    <!-- MODAL: NOTAS -->
+    <div id="modal-notes" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm hidden items-center justify-center z-[550] p-4 modal-backdrop">
+        <div class="modal-content bg-white w-full max-w-xs rounded-2xl p-5 shadow-2xl border border-slate-100">
+            <div class="flex justify-between items-center mb-3">
+                <h2 id="modal-notes-title" class="font-black text-slate-700 text-[10px] uppercase tracking-wide">Notas</h2>
+                <button onclick="closeModal('modal-notes')" class="text-slate-300 hover:text-slate-500 text-lg font-bold leading-none">&times;</button>
+            </div>
+            <textarea id="modal-notes-textarea" class="w-full border border-slate-200 rounded-xl p-3 text-[11px] h-32 bg-slate-50 outline-none font-medium text-slate-600 focus:bg-white focus:border-indigo-300 shadow-inner transition-colors resize-none" placeholder="Escribe tu nota aquí..."></textarea>
+            <button onclick="saveNoteFromModal()" class="btn-primary w-full bg-gradient-to-r from-indigo-600 to-violet-600 text-white py-2.5 rounded-xl font-black text-[9px] mt-3 uppercase tracking-wider shadow-md">Guardar</button>
+        </div>
+    </div>
+
     <!-- Hidden file input for import -->
     <input type="file" id="import-file-input" accept=".json" class="hidden">
 
