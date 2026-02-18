@@ -549,6 +549,8 @@ function updateTopStats() {
     safeSet('res-stat-nps', displayNps);
     safeSet('res-stat-nps-acciones', pNps);
     safeSet('res-stat-proj', projSum);
+    safeSet('res-stat-tab-plus-proj', displayNps + projSum);
+    safeSet('res-stat-combo-detail', `${displayNps} + ${projSum}`);
 }
 
 function getFilteredResults() {
@@ -583,15 +585,23 @@ function updateResultStats() {
     }
 
     const labelEl = $('res-stat-nps-label');
+    const comboLabelEl = $('res-stat-combo-label');
     if (labelEl) {
         if (currentResultPeriod === 'all') labelEl.innerText = 'NPs Tableau Total';
         else if (isQFilter) labelEl.innerText = `NPs Tableau ${currentResultPeriod}`;
         else labelEl.innerText = `NPs Tableau ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
     }
+    if (comboLabelEl) {
+        if (currentResultPeriod === 'all') comboLabelEl.innerText = 'Tableau + Proy Total';
+        else if (isQFilter) comboLabelEl.innerText = `Tableau + Proy ${currentResultPeriod}`;
+        else comboLabelEl.innerText = `Tableau + Proy ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
+    }
 
     safeSet('res-stat-nps', displayNps);
     safeSet('res-stat-nps-acciones', pNpsFromTable);
     safeSet('res-stat-proj', projSum);
+    safeSet('res-stat-tab-plus-proj', displayNps + projSum);
+    safeSet('res-stat-combo-detail', `${displayNps} + ${projSum}`);
     safeSet('res-stat-inv', fmtCOP.format(pInv));
 
     const qs = [
