@@ -552,6 +552,7 @@ function updateTopStats() {
 
     safeSet('res-stat-nps', displayNps);
     safeSet('res-stat-nps-acciones', pNps);
+    safeSet('res-stat-nps-total', displayNps + pNps);
     safeSet('res-stat-proj', smartProj);
 }
 
@@ -595,6 +596,7 @@ function updateResultStats() {
 
     safeSet('res-stat-nps', displayNps);
     safeSet('res-stat-nps-acciones', pNpsFromTable);
+    safeSet('res-stat-nps-total', displayNps + pNpsFromTable);
     safeSet('res-stat-proj', smartProj);
     safeSet('res-stat-inv', fmtCOP.format(pInv));
 
