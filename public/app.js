@@ -507,15 +507,15 @@ function updateQDelta(q) {
     const meta = quarterProjections[q] || 0;
 
     const qMonths = { Q1: [0,1,2], Q2: [3,4,5], Q3: [6,7,8], Q4: [9,10,11] };
-    let projTable = 0;
+    let smartProjQ = 0;
     results.forEach(r => {
         if (r.date) {
             const m = new Date(r.date.replace(/-/g,'/')).getMonth();
-            if (qMonths[q].includes(m)) projTable += (r.projectedNps || 0);
+            if (qMonths[q].includes(m)) smartProjQ += r.confirmed ? (r.nps || 0) : (r.projectedNps || 0);
         }
     });
 
-    const realPlusProy = actual + projTable;
+    const realPlusProy = actual + smartProjQ;
     const deltaReal = actual - meta;
     const deltaProy = realPlusProy - meta;
 
@@ -540,22 +540,17 @@ function updateTopStats() {
     const isQFilter = ['Q1','Q2','Q3','Q4'].includes(currentResultPeriod);
 
     let displayNps = pNps;
-    let pProj = periodFil.reduce((acc, r) => acc + (r.projectedNps || 0), 0);
     if (isQFilter) {
         displayNps = quarterActualNps[currentResultPeriod] || 0;
-        pProj = quarterProjections[currentResultPeriod] || 0;
     }
 
+    const smartProj = periodFil.reduce((acc, r) => {
+        return acc + (r.confirmed ? (r.nps || 0) : (r.projectedNps || 0));
+    }, 0);
+
     safeSet('res-stat-nps', displayNps);
-    safeSet('res-stat-proj', pProj);
-    const pDelta = displayNps - pProj;
-    const deltaEl = $('res-stat-delta');
-    if (deltaEl) {
-        const sign = pDelta > 0 ? '+' : '';
-        deltaEl.innerText = `${sign}${pDelta}`;
-        deltaEl.className = 'text-2xl font-black mt-0.5 ' +
-            (pDelta > 0 ? 'text-green-600' : pDelta < 0 ? 'text-red-500' : 'text-slate-400');
-    }
+    safeSet('res-stat-nps-acciones', pNps);
+    safeSet('res-stat-proj', smartProj);
 }
 
 function getFilteredResults() {
@@ -574,36 +569,29 @@ function updateResultStats() {
     const periodFil = fil.filter(r => matchesPeriodFilter(r.date, currentResultPeriod));
 
     const pNpsFromTable = periodFil.reduce((acc, r) => acc + (r.nps || 0), 0);
-    const pProjFromRows = periodFil.reduce((acc, r) => acc + (r.projectedNps || 0), 0);
+    const smartProj = periodFil.reduce((acc, r) => {
+        return acc + (r.confirmed ? (r.nps || 0) : (r.projectedNps || 0));
+    }, 0);
     const pInv = periodFil.reduce((acc, r) =>
         acc + (r.fixed || 0) + (r.variable || 0) + (COMISION_POR_NP * (r.nps || 0)) + (r.pauta || 0), 0
     );
 
     const isQFilter = ['Q1','Q2','Q3','Q4'].includes(currentResultPeriod);
     let displayNps = pNpsFromTable;
-    let pProj = pProjFromRows;
     if (isQFilter) {
         displayNps = quarterActualNps[currentResultPeriod] || 0;
-        pProj = quarterProjections[currentResultPeriod] || 0;
     }
 
     const labelEl = $('res-stat-nps-label');
     if (labelEl) {
-        if (currentResultPeriod === 'all') labelEl.innerText = 'NPs Total';
+        if (currentResultPeriod === 'all') labelEl.innerText = 'NPs Real Total';
         else if (isQFilter) labelEl.innerText = `NPs Real ${currentResultPeriod}`;
-        else labelEl.innerText = `NPs ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
+        else labelEl.innerText = `NPs Real ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
     }
 
     safeSet('res-stat-nps', displayNps);
-    safeSet('res-stat-proj', pProj);
-    const pDelta = displayNps - pProj;
-    const deltaEl = $('res-stat-delta');
-    if (deltaEl) {
-        const sign = pDelta > 0 ? '+' : '';
-        deltaEl.innerText = `${sign}${pDelta}`;
-        deltaEl.className = 'text-2xl font-black mt-0.5 ' +
-            (pDelta > 0 ? 'text-green-600' : pDelta < 0 ? 'text-red-500' : 'text-slate-400');
-    }
+    safeSet('res-stat-nps-acciones', pNpsFromTable);
+    safeSet('res-stat-proj', smartProj);
     safeSet('res-stat-inv', fmtCOP.format(pInv));
 
     const qs = [
@@ -620,20 +608,20 @@ function updateResultStats() {
         }
     });
 
-    const qProjFromTable = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+    const qSmartProj = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     fil.forEach(r => {
         if (r.date) {
             const m = new Date(r.date.replace(/-/g,'/')).getMonth();
             const qId = m < 3 ? 'Q1' : m < 6 ? 'Q2' : m < 9 ? 'Q3' : 'Q4';
-            qProjFromTable[qId] += (r.projectedNps || 0);
+            qSmartProj[qId] += r.confirmed ? (r.nps || 0) : (r.projectedNps || 0);
         }
     });
 
     safeHTML('res-stats-quarters', qs.map(q => {
         const actual = quarterActualNps[q.id] || 0;
         const meta = quarterProjections[q.id] || 0;
-        const projTable = qProjFromTable[q.id] || 0;
-        const realPlusProy = actual + projTable;
+        const smartProjQ = qSmartProj[q.id] || 0;
+        const realPlusProy = actual + smartProjQ;
         const deltaReal = actual - meta;
         const deltaProy = realPlusProy - meta;
         const isActive = currentResultPeriod === q.id;
@@ -765,6 +753,7 @@ function renderResultsTable() {
             <td><input type="text" value="${format(row.nps)}" oninput="handleNumberInput(this, ${row.id}, 'nps')" class="w-10 text-indigo-600 font-bold text-center"></td>
             <td class="formula-col text-[7px]"><input type="text" value="${format(row.projectedNps)}" oninput="handleNumberInput(this, ${row.id}, 'projectedNps')" class="w-10 text-center text-violet-600 font-bold"></td>
             <td class="text-[7px] text-center cell-delta">${renderDelta(row.nps, row.projectedNps)}</td>
+            <td class="text-center"><input type="checkbox" ${row.confirmed ? 'checked' : ''} onchange="toggleConfirmed(${row.id}, this.checked)" class="w-3.5 h-3.5 accent-emerald-500 cursor-pointer" title="Marcar = usar NPs real en proyección"></td>
             <td class="formula-col opacity-60 text-[7px] cvr-np-tr">${row.trials > 0 ? (row.nps/row.trials*100).toFixed(1)+'%' : '0%'}</td>
             <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.fixed)}" oninput="handleNumberInput(this, ${row.id}, 'fixed')" class="w-14 input-money"></div></td>
             <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.variable)}" oninput="handleNumberInput(this, ${row.id}, 'variable')" class="w-14 input-money"></div></td>
@@ -799,12 +788,22 @@ function addResultRow() {
         wa_group: 0, attendees: 0, trials: 0, nps: 0,
         fixed: 0, variable: 0, pauta: 0,
         projectedNps: 0,
+        confirmed: false,
         notes: ''
     });
     renderResultsTable();
     updateResultStats();
     debouncedSaveResults();
     showToast('Fila manual agregada', 'info');
+}
+
+function toggleConfirmed(id, checked) {
+    const r = results.find(row => row.id === id);
+    if (r) {
+        r.confirmed = checked;
+        updateResultStats();
+        debouncedSaveResults();
+    }
 }
 
 function deleteResultRow(id) {
@@ -1018,6 +1017,7 @@ function linkEventToResults(id) {
         wa_group: 0, attendees: 0, trials: 0, nps: 0,
         fixed: 0, variable: 0, pauta: 0,
         projectedNps: e.projectedNps || 0,
+        confirmed: false,
         notes: ''
     });
     renderResultsTable();
@@ -1245,7 +1245,7 @@ function exportCSV() {
         return;
     }
 
-    const headers = ['Afiliado','Fecha','Tipo','WA_Group','Asistentes','Trials','NPs','Proy_NPs','Delta_NP','Fijo','Variable','Comisiones','Pauta','TOTAL_INV','CAC_COP','CAC_USD','Notas'];
+    const headers = ['Afiliado','Fecha','Tipo','WA_Group','Asistentes','Trials','NPs','Proy_NPs','Delta_NP','Confirmado','Fijo','Variable','Comisiones','Pauta','TOTAL_INV','CAC_COP','CAC_USD','Notas'];
     const rows = results.map(r => {
         const comis = COMISION_POR_NP * (r.nps || 0);
         const total = (r.fixed || 0) + (r.variable || 0) + comis + (r.pauta || 0);
@@ -1255,7 +1255,7 @@ function exportCSV() {
         return [
             r.name, r.date, r.type,
             r.wa_group || 0, r.attendees || 0, r.trials || 0, r.nps || 0,
-            r.projectedNps || 0, delta,
+            r.projectedNps || 0, delta, r.confirmed ? 'Si' : 'No',
             r.fixed || 0, r.variable || 0, comis, r.pauta || 0,
             total, cacCop, cacUsd,
             r.notes || ''

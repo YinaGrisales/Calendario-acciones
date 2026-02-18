@@ -262,19 +262,25 @@
 
         <!-- VIEW: RESULTADOS -->
         <section id="view-results" class="hidden space-y-3">
-            <!-- Result stats row 1: NPs + Proy + Delta + Inversión -->
+            <!-- Section title -->
+            <div class="flex items-center gap-2">
+                <h1 class="text-lg font-black text-slate-800 uppercase tracking-wide">Resultados Partner Click</h1>
+            </div>
+
+            <!-- Result stats row 1: NPs Real Q + NPs Acciones + Proyecciones + Inversión -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider" id="res-stat-nps-label">NPs Periodo</span>
-                    <span class="text-2xl font-black text-indigo-600 mt-0.5" id="res-stat-nps">0</span>
+                <div class="stat-card bg-white p-3 rounded-2xl border border-emerald-100 flex flex-col items-center shadow-sm">
+                    <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider" id="res-stat-nps-label">NPs Real Q1</span>
+                    <span class="text-2xl font-black text-emerald-600 mt-0.5" id="res-stat-nps">0</span>
+                </div>
+                <div class="stat-card bg-white p-3 rounded-2xl border border-indigo-100 flex flex-col items-center shadow-sm">
+                    <span class="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">NPs Acciones</span>
+                    <span class="text-2xl font-black text-indigo-600 mt-0.5" id="res-stat-nps-acciones">0</span>
                 </div>
                 <div class="stat-card bg-white p-3 rounded-2xl border border-violet-100 flex flex-col items-center shadow-sm">
-                    <span class="text-[9px] font-bold text-violet-400 uppercase tracking-wider">Proy. NPs</span>
+                    <span class="text-[9px] font-bold text-violet-400 uppercase tracking-wider">Proyecciones</span>
                     <span class="text-2xl font-black text-violet-600 mt-0.5" id="res-stat-proj">0</span>
-                </div>
-                <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Δ Total</span>
-                    <span class="text-2xl font-black mt-0.5" id="res-stat-delta">0</span>
+                    <span class="text-[7px] text-slate-300 mt-0.5" id="res-stat-proj-hint">✓ check = NPs real</span>
                 </div>
                 <div class="stat-card bg-white p-3 rounded-2xl border border-slate-100 flex flex-col items-center shadow-sm">
                     <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Inversión</span>
@@ -325,7 +331,9 @@
                             <th class="text-left pl-3 w-[145px]">Afiliado / Fecha</th>
                             <th>WA</th><th>Asist.</th><th class="formula-col">Ast/WA</th>
                             <th>Tr.</th><th class="formula-col">WA/Tr</th>
-                            <th>NPs</th><th class="formula-col">Proy.</th><th class="formula-col">Δ NP</th><th class="formula-col">NP/Tr</th>
+                            <th>NPs</th><th class="formula-col">Proy.</th><th class="formula-col">Δ NP</th>
+                            <th title="Si marcas el check, se usa NPs real en vez de Proy.">✓</th>
+                            <th class="formula-col">NP/Tr</th>
                             <th>Fijo</th><th>Var.</th><th class="money-col">Comis.</th>
                             <th>Pauta</th><th class="total-col">TOTAL</th>
                             <th class="formula-col">CAC COP</th><th class="formula-col">CAC USD</th><th>Notas</th><th></th>
