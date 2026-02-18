@@ -542,6 +542,8 @@ function updateTopStats() {
     let displayNps = pNps;
     if (isQFilter) {
         displayNps = quarterActualNps[currentResultPeriod] || 0;
+    } else if (currentResultPeriod === 'all') {
+        displayNps = (quarterActualNps.Q1 || 0) + (quarterActualNps.Q2 || 0) + (quarterActualNps.Q3 || 0) + (quarterActualNps.Q4 || 0);
     }
 
     const smartProj = periodFil.reduce((acc, r) => {
@@ -580,6 +582,8 @@ function updateResultStats() {
     let displayNps = pNpsFromTable;
     if (isQFilter) {
         displayNps = quarterActualNps[currentResultPeriod] || 0;
+    } else if (currentResultPeriod === 'all') {
+        displayNps = (quarterActualNps.Q1 || 0) + (quarterActualNps.Q2 || 0) + (quarterActualNps.Q3 || 0) + (quarterActualNps.Q4 || 0);
     }
 
     const labelEl = $('res-stat-nps-label');
