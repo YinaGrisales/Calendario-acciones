@@ -451,12 +451,41 @@ function addContentRow() {
         affiliate: '',
         date: '',
         contentType: 'Post',
-        description: '',
-        link: '',
-        status: 'Pendiente'
+        channel: '',
+        link: ''
     });
     saveContenidosToStorage();
     renderContenidosTable();
+}
+
+function linkPlanningToContenidos() {
+    const contentEvents = events.filter(e => e.type === 'contenido');
+    if (!contentEvents.length) {
+        showToast('No hay eventos de contenido en planificación', 'warning');
+        return;
+    }
+    const existingKeys = new Set(contenidos.map(c => c.eventId).filter(Boolean));
+    let added = 0;
+    contentEvents.forEach(e => {
+        if (existingKeys.has(e.id)) return;
+        contenidos.push({
+            id: Date.now() + added,
+            eventId: e.id,
+            affiliate: e.affiliate,
+            date: e.date,
+            contentType: 'Post',
+            channel: '',
+            link: ''
+        });
+        added++;
+    });
+    if (added > 0) {
+        saveContenidosToStorage();
+        renderContenidosTable();
+        showToast(`${added} contenido(s) vinculado(s) desde planificación`, 'success');
+    } else {
+        showToast('Todos los contenidos ya están vinculados', 'info');
+    }
 }
 
 function updateContentField(id, field, value) {
@@ -476,6 +505,7 @@ function renderContenidosTable() {
     const tbody = $('contenidos-table-body');
     if (!tbody) return;
     const affiliates = getAllContentAffiliates();
+    const channels = ['Instagram','YouTube','TikTok','Facebook','LinkedIn'];
     const sorted = [...contenidos].sort((a, b) => {
         if (!a.date && !b.date) return 0;
         if (!a.date) return 1;
@@ -484,14 +514,8 @@ function renderContenidosTable() {
     });
 
     tbody.innerHTML = sorted.map(row => {
-        const statusColors = {
-            'Pendiente': 'bg-amber-50 text-amber-600',
-            'En progreso': 'bg-blue-50 text-blue-600',
-            'Publicado': 'bg-emerald-50 text-emerald-600',
-            'Cancelado': 'bg-red-50 text-red-600'
-        };
-        const sc = statusColors[row.status] || statusColors['Pendiente'];
-        return `<tr>
+        const linked = row.eventId ? 'border-l-2 border-l-violet-400' : '';
+        return `<tr class="${linked}">
             <td><select onchange="updateContentField(${row.id},'affiliate',this.value)" class="text-[9px] font-bold text-slate-700 bg-transparent border-none w-full">
                 <option value="">— Seleccionar —</option>
                 ${affiliates.map(a => `<option value="${escapeHTML(a)}" ${a === row.affiliate ? 'selected' : ''}>${escapeHTML(a)}</option>`).join('')}
@@ -500,15 +524,16 @@ function renderContenidosTable() {
             <td><select onchange="updateContentField(${row.id},'contentType',this.value)" class="text-[9px] text-slate-600 bg-transparent border-none">
                 ${['Post','Reel','Story','Video','Blog','Live','Otro'].map(t => `<option ${t === row.contentType ? 'selected' : ''}>${t}</option>`).join('')}
             </select></td>
-            <td class="max-w-[120px]">
+            <td><select onchange="updateContentField(${row.id},'channel',this.value)" class="text-[9px] text-slate-600 bg-transparent border-none">
+                <option value="">—</option>
+                ${channels.map(ch => `<option ${ch === row.channel ? 'selected' : ''}>${ch}</option>`).join('')}
+            </select></td>
+            <td class="max-w-[140px]">
                 ${row.link
-                    ? `<a href="${escapeHTML(row.link)}" target="_blank" rel="noopener" class="text-[9px] text-indigo-500 font-bold underline truncate block max-w-[100px]" title="${escapeHTML(row.link)}">Ver ↗</a>`
+                    ? `<a href="${escapeHTML(row.link)}" target="_blank" rel="noopener" class="text-[9px] text-indigo-500 font-bold underline truncate block max-w-[120px]" title="${escapeHTML(row.link)}">Ver ↗</a>`
                     : ''}
                 <input type="url" value="${escapeHTML(row.link || '')}" onchange="updateContentField(${row.id},'link',this.value)" placeholder="https://..." class="text-[8px] text-slate-400 bg-transparent border-none w-full mt-0.5">
             </td>
-            <td><select onchange="updateContentField(${row.id},'status',this.value)" class="text-[8px] font-bold ${sc} rounded-md px-1.5 py-0.5 border-none">
-                ${['Pendiente','En progreso','Publicado','Cancelado'].map(s => `<option ${s === row.status ? 'selected' : ''}>${s}</option>`).join('')}
-            </select></td>
             <td><button onclick="removeContentRow(${row.id})" class="text-red-300 hover:text-red-500 text-xs transition-colors" title="Eliminar">✕</button></td>
         </tr>`;
     }).join('');

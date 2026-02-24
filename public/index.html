@@ -407,7 +407,10 @@
         <section id="view-contenidos" class="hidden space-y-3">
             <div class="flex items-center justify-between gap-2">
                 <h1 class="text-lg font-black text-slate-800 uppercase tracking-wide">Contenidos</h1>
-                <button onclick="addContentRow()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold px-4 py-2 rounded-xl transition-colors shadow-sm">+ Agregar</button>
+                <div class="flex gap-2">
+                    <button onclick="linkPlanningToContenidos()" class="bg-violet-600 hover:bg-violet-700 text-white text-[10px] font-bold px-4 py-2 rounded-xl transition-colors shadow-sm">🔗 Vincular planificación</button>
+                    <button onclick="addContentRow()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold px-4 py-2 rounded-xl transition-colors shadow-sm">+ Manual</button>
+                </div>
             </div>
             <div class="table-container shadow-sm overflow-visible">
                 <table class="results-table w-full border-collapse">
@@ -416,8 +419,8 @@
                             <th class="text-[8px]">Afiliado</th>
                             <th class="text-[8px]">Fecha</th>
                             <th class="text-[8px]">Tipo</th>
+                            <th class="text-[8px]">Canal</th>
                             <th class="text-[8px]">Link</th>
-                            <th class="text-[8px]">Estado</th>
                             <th class="text-[8px]"></th>
                         </tr>
                     </thead>
