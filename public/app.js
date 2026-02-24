@@ -22,7 +22,7 @@ let currentLeverFilter = 'all';
 let currentAffiliateFilter = 'all';
 let currentTypeFilters = ['all'];
 let currentResultPeriod = 'all';
-let confirmedOnlyFilter = false;
+let confirmedFilter = 'all';
 let saveTimeout = null;
 
 let quarterProjections = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
@@ -902,14 +902,16 @@ function updateComisionPct(el) {
     updateResultStats();
 }
 
-function toggleConfirmedFilter() {
-    confirmedOnlyFilter = !confirmedOnlyFilter;
-    const btn = $('btn-confirmed-filter');
-    if (btn) {
-        btn.className = confirmedOnlyFilter
-            ? 'filter-chip bg-emerald-600 text-white border-emerald-600 shadow-sm font-black flex items-center gap-1'
-            : 'filter-chip bg-white text-slate-400 border-slate-200 opacity-80 flex items-center gap-1';
-    }
+function setConfirmedFilter(mode) {
+    confirmedFilter = mode;
+    ['all','check','nocheck'].forEach(m => {
+        const b = $('btn-cf-' + m);
+        if (!b) return;
+        const active = m === mode;
+        if (m === 'all') b.className = `filter-chip flex items-center gap-1 ${active ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm font-black' : 'bg-white text-slate-400 border-slate-200 opacity-80'}`;
+        else if (m === 'check') b.className = `filter-chip flex items-center gap-1 ${active ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm font-black' : 'bg-white text-slate-400 border-slate-200 opacity-80'}`;
+        else b.className = `filter-chip flex items-center gap-1 ${active ? 'bg-red-500 text-white border-red-500 shadow-sm font-black' : 'bg-white text-slate-400 border-slate-200 opacity-80'}`;
+    });
     renderResultsTable();
     updateResultStats();
 }
@@ -1023,7 +1025,7 @@ function getFilteredResults() {
         (currentAffiliateFilter === 'all' || r.name === currentAffiliateFilter) &&
         (currentLeverFilter === 'all' || getAffiliateLever(r.name) === currentLeverFilter) &&
         matchesPeriodFilter(r.date, currentResultPeriod) &&
-        (!confirmedOnlyFilter || r.confirmed)
+        (confirmedFilter === 'all' || (confirmedFilter === 'check' && r.confirmed) || (confirmedFilter === 'nocheck' && !r.confirmed))
     );
 }
 
@@ -1301,7 +1303,7 @@ function renderResultsTable() {
         (currentAffiliateFilter === 'all' || row.name === currentAffiliateFilter) &&
         (currentLeverFilter === 'all' || getAffiliateLever(row.name) === currentLeverFilter) &&
         matchesPeriodFilter(row.date, currentResultPeriod) &&
-        (!confirmedOnlyFilter || row.confirmed)
+        (confirmedFilter === 'all' || (confirmedFilter === 'check' && row.confirmed) || (confirmedFilter === 'nocheck' && !row.confirmed))
     ).sort((a, b) => {
         if (!a.date && !b.date) return 0;
         if (!a.date) return 1;
