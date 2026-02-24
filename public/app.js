@@ -515,7 +515,7 @@ function addSingleContentFromPlanning(eventId, btn) {
     }
 }
 
-function syncDateAcrossViews(eventId, affiliateName, newDate, source) {
+function syncDateAcrossViews(eventId, affiliateName, newDate, source, oldDate) {
     let changed = false;
     if (source !== 'planning' && eventId) {
         const ev = events.find(e => String(e.id) === String(eventId));
@@ -529,7 +529,7 @@ function syncDateAcrossViews(eventId, affiliateName, newDate, source) {
     if (source !== 'contenidos') {
         const ct = eventId
             ? contenidos.find(c => String(c.eventId) === String(eventId))
-            : contenidos.find(c => c.affiliate === affiliateName && c.date !== newDate);
+            : contenidos.find(c => c.affiliate === affiliateName && c.date === oldDate);
         if (ct && ct.date !== newDate) {
             ct.date = newDate;
             changed = true;
@@ -537,9 +537,13 @@ function syncDateAcrossViews(eventId, affiliateName, newDate, source) {
         }
     }
     if (source !== 'results') {
-        const res = eventId
+        let res = eventId
             ? results.find(r => String(r.eventId) === String(eventId))
             : null;
+        if (!res && affiliateName) {
+            const nameLC = affiliateName.toLowerCase().trim();
+            res = results.find(r => r.name && r.name.toLowerCase().trim() === nameLC && r.date === oldDate);
+        }
         if (res && res.date !== newDate) {
             res.date = newDate;
             changed = true;
@@ -556,7 +560,7 @@ function updateContentField(id, field, value) {
     item[field] = value;
 
     if (field === 'date') {
-        syncDateAcrossViews(item.eventId, item.affiliate, value, 'contenidos');
+        syncDateAcrossViews(item.eventId, item.affiliate, value, 'contenidos', oldDate);
     }
 
     saveContenidosToStorage();
@@ -1419,9 +1423,10 @@ function updateResultValue(id, field, val) {
     const r = results.find(row => row.id === id);
     if (!r) return;
     if (field === 'name' || field === 'date' || field === 'type') {
+        const oldDate = r.date;
         r[field] = val;
         if (field === 'date') {
-            syncDateAcrossViews(r.eventId, r.name, val, 'results');
+            syncDateAcrossViews(r.eventId, r.name, val, 'results', oldDate);
         }
         renderResultsTable();
     } else if (field === 'notes') {
@@ -1540,13 +1545,14 @@ function saveEvent() {
     if (pendingAction) {
         const idx = events.findIndex(e => e.id === pendingAction.id);
         if (idx !== -1) {
+            const oldDate = events[idx].date;
             events[idx] = {
                 ...pendingAction,
                 affiliate: aff, type: typ, date: sd,
                 endDate: typ === 'convocatoria' ? ed : sd,
                 projectedNps: projNps
             };
-            syncDateAcrossViews(pendingAction.id, aff, sd, 'planning');
+            syncDateAcrossViews(pendingAction.id, aff, sd, 'planning', oldDate);
         }
         showToast('Acción actualizada', 'success');
     } else {
