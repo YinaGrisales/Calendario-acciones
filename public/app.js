@@ -27,6 +27,7 @@ let saveTimeout = null;
 
 let quarterProjections = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
 let quarterActualNps = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+let quarterActualTrials = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
 
 let categories = {
     comunidad:    { label: "Comunidad",    members: ["Vivi Garcia", "Orange", "Tati Uribe"] },
@@ -46,6 +47,7 @@ const STORAGE_KEY_Q_PROJ   = 'hub2026_q_projections';
 const STORAGE_KEY_Q_ACTUAL = 'hub2026_q_actual_nps';
 const STORAGE_KEY_CONFIG   = 'hub2026_config';
 const STORAGE_KEY_CONTENIDOS = 'hub2026_contenidos';
+const STORAGE_KEY_Q_TRIALS = 'hub2026_q_trials';
 
 // ── Supabase Cloud Sync ──────────────────────────────────────
 const SUPABASE_URL = 'https://tdqupaeytqncifduycvg.supabase.co';
@@ -56,13 +58,14 @@ let suppressCloudSync = false;
 
 function getFullState() {
     return {
-        version: '1.4',
+        version: '1.5',
         timestamp: new Date().toISOString(),
         planning: { events, categories },
         results,
         contenidos,
         quarterProjections,
         quarterActualNps,
+        quarterActualTrials,
         config: { trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT }
     };
 }
@@ -86,6 +89,11 @@ function applyFullState(data) {
     if (data.quarterActualNps) {
         Object.keys(quarterActualNps).forEach(k => {
             if (data.quarterActualNps[k] !== undefined) quarterActualNps[k] = data.quarterActualNps[k];
+        });
+    }
+    if (data.quarterActualTrials) {
+        Object.keys(quarterActualTrials).forEach(k => {
+            if (data.quarterActualTrials[k] !== undefined) quarterActualTrials[k] = data.quarterActualTrials[k];
         });
     }
     if (data.config) {
@@ -112,6 +120,7 @@ async function loadFromCloud() {
             saveConfigToStorage();
             saveQProjectionsToStorage();
             saveQActualToStorage();
+            saveQTrialsToStorage();
             suppressCloudSync = false;
             return true;
         }
@@ -217,6 +226,13 @@ function loadFromStorage() {
                 if (parsed[k] !== undefined) quarterActualNps[k] = parsed[k];
             });
         }
+        const qTriRaw = localStorage.getItem(STORAGE_KEY_Q_TRIALS);
+        if (qTriRaw) {
+            const parsed = JSON.parse(qTriRaw);
+            Object.keys(quarterActualTrials).forEach(k => {
+                if (parsed[k] !== undefined) quarterActualTrials[k] = parsed[k];
+            });
+        }
         const cfgRaw = localStorage.getItem(STORAGE_KEY_CONFIG);
         if (cfgRaw) {
             const cfg = JSON.parse(cfgRaw);
@@ -254,6 +270,15 @@ function saveQActualToStorage() {
         localStorage.setItem(STORAGE_KEY_Q_ACTUAL, JSON.stringify(quarterActualNps));
     } catch (err) {
         showToast('Error al guardar NPs reales', 'error');
+    }
+    if (!suppressCloudSync) debouncedSaveToCloud();
+}
+
+function saveQTrialsToStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEY_Q_TRIALS, JSON.stringify(quarterActualTrials));
+    } catch (err) {
+        showToast('Error al guardar trials', 'error');
     }
     if (!suppressCloudSync) debouncedSaveToCloud();
 }
@@ -813,6 +838,13 @@ function handleQActualInput(q, el) {
     updateTopStats();
 }
 
+function handleQTrialsInput(q, el) {
+    const val = parseInt(el.value) || 0;
+    quarterActualTrials[q] = val;
+    saveQTrialsToStorage();
+    updateResultStats();
+}
+
 function updateQDelta(q) {
     const faltanRealEl = document.querySelector(`[data-q-faltan-real="${q}"]`);
     const faltanProyEl = document.querySelector(`[data-q-faltan-proy="${q}"]`);
@@ -940,12 +972,19 @@ function updateResultStats() {
         else comboLabelEl.innerText = `Tableau + Proy ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
     }
 
-    const pTrials = periodFil.reduce((acc, r) => acc + (r.trials || 0), 0);
-    const cvr = pTrials > 0 ? (displayNps / pTrials * 100) : 0;
+    let displayTrials = 0;
+    if (isQFilter) {
+        displayTrials = quarterActualTrials[currentResultPeriod] || 0;
+    } else if (currentResultPeriod === 'all') {
+        displayTrials = (quarterActualTrials.Q1 || 0) + (quarterActualTrials.Q2 || 0) + (quarterActualTrials.Q3 || 0) + (quarterActualTrials.Q4 || 0);
+    } else {
+        displayTrials = periodFil.reduce((acc, r) => acc + (r.trials || 0), 0);
+    }
+    const cvr = displayTrials > 0 ? (displayNps / displayTrials * 100) : 0;
 
     safeSet('res-stat-nps', displayNps);
     safeSet('res-stat-nps-acciones', pNpsFromTable);
-    safeSet('res-stat-trials', pTrials);
+    safeSet('res-stat-trials', displayTrials);
     safeSet('res-stat-cvr', cvr > 0 ? cvr.toFixed(1) + '%' : '0%');
     safeSet('res-stat-proj', projSum);
     safeSet('res-stat-tab-plus-proj', displayNps + projSum);
@@ -1039,7 +1078,7 @@ function updateResultStats() {
 
     safeHTML('res-stats-quarters', qs.map(q => {
         const tableau = quarterActualNps[q.id] || 0;
-        const trialsQ = qTrials[q.id] || 0;
+        const trialsTab = quarterActualTrials[q.id] || 0;
         const meta = quarterProjections[q.id] || 0;
         const projQ = qProj[q.id] || 0;
         const invQ = qCacInv[q.id] || 0;
@@ -1057,41 +1096,31 @@ function updateResultStats() {
         const cacAccQ = npsAccQ > 0 ? invQ / npsAccQ / TRM : 0;
         const cacGenQ = tableau > 0 ? invQ / tableau / TRM : 0;
 
-        const cvrQ = trialsQ > 0 ? (tableau / trialsQ * 100).toFixed(1) : '0';
-
         const isActive = currentResultPeriod === q.id;
         const ringCls = isActive ? 'ring-2 ring-violet-400 ring-inset' : '';
         return `<div class="flex flex-col items-center cursor-pointer hover:bg-violet-50 rounded-xl p-3 transition-colors ${ringCls} border border-slate-100" onclick="setResultPeriod('${q.id}')">
             <p class="text-sm font-black text-indigo-500 uppercase tracking-wide">${q.id}</p>
-            <div class="flex items-center gap-2 mt-2">
-                <span class="text-[10px] text-amber-500 font-bold">Trials:</span>
-                <span class="text-sm font-black text-amber-600">${trialsQ}</span>
+            <div class="flex items-center gap-1.5 mt-2">
+                <span class="text-xs text-amber-500 font-bold">Trials Tableau:</span>
+                <input type="text" value="${trialsTab}" onclick="event.stopPropagation()"
+                    onchange="handleQTrialsInput('${q.id}', this)"
+                    class="w-16 text-center text-sm font-bold rounded-lg border border-amber-300 text-amber-700 bg-amber-50 focus:border-amber-500 focus:outline-none px-2 py-1">
             </div>
-            <div class="flex items-center gap-2 mt-0.5">
-                <span class="text-[10px] text-emerald-500 font-bold">NPs Tab:</span>
-                <span class="text-sm font-black text-emerald-600">${tableau}</span>
+            <div class="flex items-center gap-1.5 mt-1.5">
+                <span class="text-xs text-emerald-500 font-bold">NPs Tableau:</span>
+                <input type="text" value="${tableau}" onclick="event.stopPropagation()"
+                    onchange="handleQActualInput('${q.id}', this)"
+                    class="w-16 text-center text-sm font-bold rounded-lg border border-emerald-300 text-emerald-700 bg-emerald-50 focus:border-emerald-500 focus:outline-none px-2 py-1">
             </div>
-            <div class="flex items-center gap-2 mt-0.5">
-                <span class="text-[10px] text-cyan-500 font-bold">CVR:</span>
-                <span class="text-sm font-black text-cyan-600">${cvrQ}%</span>
-            </div>
-            <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-1">
-                <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] text-emerald-500 font-bold">Tableau:</span>
-                    <input type="text" value="${tableau}" onclick="event.stopPropagation()"
-                        onchange="handleQActualInput('${q.id}', this)"
-                        class="w-14 text-center text-xs font-bold rounded-lg border border-emerald-300 text-emerald-700 bg-emerald-50 focus:border-emerald-500 focus:outline-none px-1.5 py-0.5">
-                </div>
-                <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] text-violet-500 font-bold">Meta:</span>
-                    <input type="text" value="${meta}" onclick="event.stopPropagation()"
-                        onchange="handleQProjectionInput('${q.id}', this)"
-                        class="w-14 text-center text-xs font-bold rounded-lg border border-violet-300 text-violet-700 bg-violet-50 focus:border-violet-500 focus:outline-none px-1.5 py-0.5">
-                </div>
+            <div class="flex items-center gap-1.5 mt-1.5">
+                <span class="text-xs text-violet-500 font-bold">Meta:</span>
+                <input type="text" value="${meta}" onclick="event.stopPropagation()"
+                    onchange="handleQProjectionInput('${q.id}', this)"
+                    class="w-16 text-center text-sm font-bold rounded-lg border border-violet-300 text-violet-700 bg-violet-50 focus:border-violet-500 focus:outline-none px-2 py-1">
             </div>
             <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-1">
-                <span class="text-[10px] font-bold ${deltaTvMcls}" data-q-faltan-real="${q.id}">Tableau vs Meta: ${deltaTvMtxt}</span>
-                <span class="text-[10px] font-bold ${deltaTPcls}" data-q-faltan-proy="${q.id}">Tab+Proy vs Meta: ${deltaTPtxt}</span>
+                <span class="text-xs font-bold ${deltaTvMcls}" data-q-faltan-real="${q.id}">Tableau vs Meta: ${deltaTvMtxt}</span>
+                <span class="text-xs font-bold ${deltaTPcls}" data-q-faltan-proy="${q.id}">Tab+Proy vs Meta: ${deltaTPtxt}</span>
             </div>
             <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-0.5">
                 <span class="text-[8px] font-bold px-2 py-0.5 rounded-md ${cacColor(cacAccQ).badge}">CAC Acc: ${fmtUSD.format(cacAccQ)}</span>
@@ -1573,13 +1602,14 @@ function openBackupModal() {
 
 function exportJSON() {
     const data = {
-        version: '1.4',
+        version: '1.5',
         exportDate: new Date().toISOString(),
         planning: { events, categories },
         results,
         contenidos,
         quarterProjections,
         quarterActualNps,
+        quarterActualTrials,
         config: { trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT }
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1622,6 +1652,11 @@ function importJSON(evt) {
                     if (data.quarterActualNps[k] !== undefined) quarterActualNps[k] = data.quarterActualNps[k];
                 });
             }
+            if (data.quarterActualTrials) {
+                Object.keys(quarterActualTrials).forEach(k => {
+                    if (data.quarterActualTrials[k] !== undefined) quarterActualTrials[k] = data.quarterActualTrials[k];
+                });
+            }
             if (data.config) {
                 if (data.config.trm) TRM = data.config.trm;
                 if (data.config.comisionPct !== undefined) COMISION_PCT = data.config.comisionPct;
@@ -1637,6 +1672,7 @@ function importJSON(evt) {
             syncConfigInputs();
             saveQProjectionsToStorage();
             saveQActualToStorage();
+            saveQTrialsToStorage();
             updateFilters();
             renderTabs();
             refreshViews();
@@ -1657,6 +1693,7 @@ function clearAllData() {
     contenidos = [];
     quarterProjections = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     quarterActualNps = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+    quarterActualTrials = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     TRM = 3700;
     COMISION_BASE = 24900;
     COMISION_PCT = 55;
@@ -1667,6 +1704,7 @@ function clearAllData() {
     localStorage.removeItem(STORAGE_KEY_Q_PROJ);
     localStorage.removeItem(STORAGE_KEY_CONFIG);
     localStorage.removeItem(STORAGE_KEY_Q_ACTUAL);
+    localStorage.removeItem(STORAGE_KEY_Q_TRIALS);
     fetch(SUPABASE_URL + '/rest/v1/hub_state?id=eq.1', {
         method: 'PATCH',
         headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
