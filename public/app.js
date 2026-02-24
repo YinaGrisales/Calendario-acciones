@@ -36,6 +36,7 @@ let categories = {
 };
 let events = [];
 let results = [];
+let contenidos = [];
 let pendingAction = null;
 
 // ── LocalStorage Persistence ────────────────────────────────
@@ -44,6 +45,7 @@ const STORAGE_KEY_RESULTS  = 'hub2026_results';
 const STORAGE_KEY_Q_PROJ   = 'hub2026_q_projections';
 const STORAGE_KEY_Q_ACTUAL = 'hub2026_q_actual_nps';
 const STORAGE_KEY_CONFIG   = 'hub2026_config';
+const STORAGE_KEY_CONTENIDOS = 'hub2026_contenidos';
 
 // ── Supabase Cloud Sync ──────────────────────────────────────
 const SUPABASE_URL = 'https://tdqupaeytqncifduycvg.supabase.co';
@@ -54,10 +56,11 @@ let suppressCloudSync = false;
 
 function getFullState() {
     return {
-        version: '1.3',
+        version: '1.4',
         timestamp: new Date().toISOString(),
         planning: { events, categories },
         results,
+        contenidos,
         quarterProjections,
         quarterActualNps,
         config: { trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT }
@@ -74,6 +77,7 @@ function applyFullState(data) {
         }
     }
     if (data.results) results = data.results;
+    if (data.contenidos) contenidos = data.contenidos;
     if (data.quarterProjections) {
         Object.keys(quarterProjections).forEach(k => {
             if (data.quarterProjections[k] !== undefined) quarterProjections[k] = data.quarterProjections[k];
@@ -104,6 +108,7 @@ async function loadFromCloud() {
             suppressCloudSync = true;
             savePlanningToStorage();
             saveResultsToStorage();
+            saveContenidosToStorage();
             saveConfigToStorage();
             saveQProjectionsToStorage();
             saveQActualToStorage();
@@ -194,6 +199,10 @@ function loadFromStorage() {
         if (resRaw) {
             results = JSON.parse(resRaw) || [];
         }
+        const contRaw = localStorage.getItem(STORAGE_KEY_CONTENIDOS);
+        if (contRaw) {
+            contenidos = JSON.parse(contRaw) || [];
+        }
         const qProjRaw = localStorage.getItem(STORAGE_KEY_Q_PROJ);
         if (qProjRaw) {
             const parsed = JSON.parse(qProjRaw);
@@ -215,7 +224,7 @@ function loadFromStorage() {
             if (cfg.comisionPct !== undefined) COMISION_PCT = cfg.comisionPct;
             if (cfg.comisionBase) COMISION_BASE = cfg.comisionBase;
             else if (cfg.comisionPorNp) COMISION_BASE = Math.round(cfg.comisionPorNp / 1.75);
-            COMISION_POR_NP = COMISION_BASE * 1.75;
+            COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
         }
     } catch (err) {
         showToast('Error al cargar datos locales', 'error');
@@ -393,13 +402,104 @@ function safeHTML(id, html) {
 }
 
 // ── View Switching ──────────────────────────────────────────
+// ── Contenidos ──────────────────────────────────────────────
+function saveContenidosToStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEY_CONTENIDOS, JSON.stringify(contenidos));
+    } catch (err) {
+        showToast('Error al guardar contenidos', 'error');
+    }
+    if (!suppressCloudSync) debouncedSaveToCloud();
+}
+
+function getAllContentAffiliates() {
+    const names = new Set();
+    Object.values(categories).forEach(c => c.members.forEach(m => names.add(m)));
+    events.filter(e => e.type === 'contenido').forEach(e => names.add(e.affiliate));
+    results.filter(r => (r.type || '').toLowerCase() === 'contenido').forEach(r => names.add(r.name));
+    return [...names].sort();
+}
+
+function addContentRow() {
+    contenidos.push({
+        id: Date.now(),
+        affiliate: '',
+        date: '',
+        contentType: 'Post',
+        description: '',
+        link: '',
+        status: 'Pendiente'
+    });
+    saveContenidosToStorage();
+    renderContenidosTable();
+}
+
+function updateContentField(id, field, value) {
+    const item = contenidos.find(c => c.id === id);
+    if (!item) return;
+    item[field] = value;
+    saveContenidosToStorage();
+}
+
+function removeContentRow(id) {
+    contenidos = contenidos.filter(c => c.id !== id);
+    saveContenidosToStorage();
+    renderContenidosTable();
+}
+
+function renderContenidosTable() {
+    const tbody = $('contenidos-table-body');
+    if (!tbody) return;
+    const affiliates = getAllContentAffiliates();
+    const sorted = [...contenidos].sort((a, b) => {
+        if (!a.date && !b.date) return 0;
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return a.date.localeCompare(b.date);
+    });
+
+    tbody.innerHTML = sorted.map(row => {
+        const statusColors = {
+            'Pendiente': 'bg-amber-50 text-amber-600',
+            'En progreso': 'bg-blue-50 text-blue-600',
+            'Publicado': 'bg-emerald-50 text-emerald-600',
+            'Cancelado': 'bg-red-50 text-red-600'
+        };
+        const sc = statusColors[row.status] || statusColors['Pendiente'];
+        return `<tr>
+            <td><select onchange="updateContentField(${row.id},'affiliate',this.value)" class="text-[9px] font-bold text-slate-700 bg-transparent border-none w-full">
+                <option value="">— Seleccionar —</option>
+                ${affiliates.map(a => `<option value="${escapeHTML(a)}" ${a === row.affiliate ? 'selected' : ''}>${escapeHTML(a)}</option>`).join('')}
+            </select></td>
+            <td><input type="date" value="${row.date || ''}" onchange="updateContentField(${row.id},'date',this.value)" class="text-[9px] text-slate-600 bg-transparent border-none"></td>
+            <td><select onchange="updateContentField(${row.id},'contentType',this.value)" class="text-[9px] text-slate-600 bg-transparent border-none">
+                ${['Post','Reel','Story','Video','Blog','Live','Otro'].map(t => `<option ${t === row.contentType ? 'selected' : ''}>${t}</option>`).join('')}
+            </select></td>
+            <td><input type="text" value="${escapeHTML(row.description || '')}" onchange="updateContentField(${row.id},'description',this.value)" placeholder="Descripción..." class="text-[9px] text-slate-600 bg-transparent border-none w-full"></td>
+            <td class="max-w-[120px]">
+                ${row.link
+                    ? `<a href="${escapeHTML(row.link)}" target="_blank" rel="noopener" class="text-[9px] text-indigo-500 font-bold underline truncate block max-w-[100px]" title="${escapeHTML(row.link)}">Ver ↗</a>`
+                    : ''}
+                <input type="url" value="${escapeHTML(row.link || '')}" onchange="updateContentField(${row.id},'link',this.value)" placeholder="https://..." class="text-[8px] text-slate-400 bg-transparent border-none w-full mt-0.5">
+            </td>
+            <td><select onchange="updateContentField(${row.id},'status',this.value)" class="text-[8px] font-bold ${sc} rounded-md px-1.5 py-0.5 border-none">
+                ${['Pendiente','En progreso','Publicado','Cancelado'].map(s => `<option ${s === row.status ? 'selected' : ''}>${s}</option>`).join('')}
+            </select></td>
+            <td><button onclick="removeContentRow(${row.id})" class="text-red-300 hover:text-red-500 text-xs transition-colors" title="Eliminar">✕</button></td>
+        </tr>`;
+    }).join('');
+}
+
 function switchView(view) {
     const toggle = (id, hide) => { const el = $(id); if (el) el.classList.toggle('hidden', hide); };
     const activate = (id, active) => { const el = $(id); if (el) el.classList.toggle('active', active); };
     toggle('view-planning', view !== 'planning');
     toggle('view-results', view !== 'results');
+    toggle('view-contenidos', view !== 'contenidos');
     activate('tab-planning', view === 'planning');
     activate('tab-results', view === 'results');
+    activate('tab-contenidos', view === 'contenidos');
+    if (view === 'contenidos') renderContenidosTable();
 }
 
 // ── Filters ─────────────────────────────────────────────────
@@ -666,7 +766,7 @@ function updateTRM(el) {
 function updateComisionBase(el) {
     const val = parseInt(String(el.value).replace(/\D/g, '')) || 0;
     COMISION_BASE = val;
-    COMISION_POR_NP = COMISION_BASE * 1.75;
+    COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
     el.value = fmtNum.format(val);
     const resultEl = $('comision-result');
     if (resultEl) resultEl.innerText = fmtCOP.format(COMISION_POR_NP);
@@ -841,12 +941,30 @@ function updateResultStats() {
         else comboLabelEl.innerText = `Tableau + Proy ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
     }
 
+    const pTrials = periodFil.reduce((acc, r) => acc + (r.trials || 0), 0);
+    const cvr = pTrials > 0 ? (displayNps / pTrials * 100) : 0;
+
     safeSet('res-stat-nps', displayNps);
     safeSet('res-stat-nps-acciones', pNpsFromTable);
+    safeSet('res-stat-trials', pTrials);
+    safeSet('res-stat-cvr', cvr > 0 ? cvr.toFixed(1) + '%' : '0%');
     safeSet('res-stat-proj', projSum);
     safeSet('res-stat-tab-plus-proj', displayNps + projSum);
     safeSet('res-stat-combo-detail', `${displayNps} + ${projSum}`);
     safeSet('res-stat-inv', fmtCOP.format(pInv));
+
+    const trialsLabelEl = $('res-stat-trials-label');
+    const cvrLabelEl = $('res-stat-cvr-label');
+    if (trialsLabelEl) {
+        if (currentResultPeriod === 'all') trialsLabelEl.innerText = 'Trials Tableau Total';
+        else if (isQFilter) trialsLabelEl.innerText = `Trials Tableau ${currentResultPeriod}`;
+        else trialsLabelEl.innerText = `Trials ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
+    }
+    if (cvrLabelEl) {
+        if (currentResultPeriod === 'all') cvrLabelEl.innerText = 'CVR NP/Trial Total';
+        else if (isQFilter) cvrLabelEl.innerText = `CVR NP/Trial ${currentResultPeriod}`;
+        else cvrLabelEl.innerText = `CVR ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
+    }
 
     const confirmedPeriodFil = periodFil.filter(r => r.confirmed);
     const cacInv = confirmedPeriodFil.reduce((acc, r) => {
@@ -1437,10 +1555,11 @@ function openBackupModal() {
 
 function exportJSON() {
     const data = {
-        version: '1.3',
+        version: '1.4',
         exportDate: new Date().toISOString(),
         planning: { events, categories },
         results,
+        contenidos,
         quarterProjections,
         quarterActualNps,
         config: { trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT }
@@ -1474,6 +1593,7 @@ function importJSON(evt) {
                 }
             }
             if (data.results) results = data.results;
+            if (data.contenidos) contenidos = data.contenidos;
             if (data.quarterProjections) {
                 Object.keys(quarterProjections).forEach(k => {
                     if (data.quarterProjections[k] !== undefined) quarterProjections[k] = data.quarterProjections[k];
@@ -1488,12 +1608,13 @@ function importJSON(evt) {
                 if (data.config.trm) TRM = data.config.trm;
                 if (data.config.comisionPct !== undefined) COMISION_PCT = data.config.comisionPct;
                 if (data.config.comisionBase) COMISION_BASE = data.config.comisionBase;
-                else if (data.config.comisionPorNp) COMISION_BASE = Math.round(data.config.comisionPorNp / 1.75);
-                COMISION_POR_NP = COMISION_BASE * 1.75;
+                else if (data.config.comisionPorNp) COMISION_BASE = Math.round(data.config.comisionPorNp / (1 + COMISION_PCT / 100));
+                COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
             }
 
             savePlanningToStorage();
             saveResultsToStorage();
+            saveContenidosToStorage();
             saveConfigToStorage();
             syncConfigInputs();
             saveQProjectionsToStorage();
@@ -1515,13 +1636,16 @@ function clearAllData() {
     if (!confirm('¿Estás seguro de que quieres borrar TODOS los datos? Esta acción no se puede deshacer.')) return;
     events = [];
     results = [];
+    contenidos = [];
     quarterProjections = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     quarterActualNps = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     TRM = 3700;
     COMISION_BASE = 24900;
-    COMISION_POR_NP = COMISION_BASE * 1.75;
+    COMISION_PCT = 55;
+    COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
     localStorage.removeItem(STORAGE_KEY_PLANNING);
     localStorage.removeItem(STORAGE_KEY_RESULTS);
+    localStorage.removeItem(STORAGE_KEY_CONTENIDOS);
     localStorage.removeItem(STORAGE_KEY_Q_PROJ);
     localStorage.removeItem(STORAGE_KEY_CONFIG);
     localStorage.removeItem(STORAGE_KEY_Q_ACTUAL);
