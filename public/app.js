@@ -465,26 +465,53 @@ function linkPlanningToContenidos() {
         return;
     }
     const existingKeys = new Set(contenidos.map(c => c.eventId).filter(Boolean));
-    let added = 0;
-    contentEvents.forEach(e => {
-        if (existingKeys.has(e.id)) return;
-        contenidos.push({
-            id: Date.now() + added,
-            eventId: e.id,
-            affiliate: e.affiliate,
-            date: e.date,
-            contentType: 'Post',
-            channel: '',
-            link: ''
-        });
-        added++;
-    });
-    if (added > 0) {
-        saveContenidosToStorage();
-        renderContenidosTable();
-        showToast(`${added} contenido(s) vinculado(s) desde planificación`, 'success');
-    } else {
+    const available = contentEvents.filter(e => !existingKeys.has(e.id));
+    if (!available.length) {
         showToast('Todos los contenidos ya están vinculados', 'info');
+        return;
+    }
+
+    const list = $('link-contenidos-list');
+    if (!list) return;
+
+    list.innerHTML = available.map(e => {
+        const dateStr = e.date ? new Date(e.date.replace(/-/g, '/')).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : 'Sin fecha';
+        return `<div class="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-violet-50 transition-colors">
+            <div class="flex flex-col">
+                <span class="text-xs font-bold text-slate-700">${escapeHTML(e.affiliate)}</span>
+                <span class="text-[10px] text-slate-400">${dateStr}${e.projectedNps ? ' · Proy: ' + e.projectedNps + ' NPs' : ''}</span>
+            </div>
+            <button onclick="addSingleContentFromPlanning(${e.id}, this)" class="bg-violet-600 hover:bg-violet-700 text-white text-[9px] font-bold px-3 py-1.5 rounded-lg transition-colors">+ Agregar</button>
+        </div>`;
+    }).join('');
+
+    openModal('modal-link-contenidos');
+}
+
+function addSingleContentFromPlanning(eventId, btn) {
+    const e = events.find(ev => ev.id === eventId);
+    if (!e) return;
+    if (contenidos.some(c => c.eventId === eventId)) {
+        showToast('Este contenido ya fue vinculado', 'info');
+        return;
+    }
+    contenidos.push({
+        id: Date.now(),
+        eventId: e.id,
+        affiliate: e.affiliate,
+        date: e.date,
+        contentType: 'Post',
+        channel: '',
+        link: ''
+    });
+    saveContenidosToStorage();
+    renderContenidosTable();
+    showToast(`${e.affiliate} vinculado`, 'success');
+
+    if (btn) {
+        btn.innerText = '✓ Agregado';
+        btn.disabled = true;
+        btn.className = 'bg-emerald-100 text-emerald-600 text-[9px] font-bold px-3 py-1.5 rounded-lg cursor-default';
     }
 }
 
@@ -492,6 +519,15 @@ function updateContentField(id, field, value) {
     const item = contenidos.find(c => c.id === id);
     if (!item) return;
     item[field] = value;
+
+    if (field === 'date' && item.eventId) {
+        const ev = events.find(e => e.id === item.eventId);
+        if (ev && ev.date !== value) {
+            ev.date = value;
+            savePlanningToStorage();
+        }
+    }
+
     saveContenidosToStorage();
 }
 
@@ -1474,6 +1510,11 @@ function saveEvent() {
                 endDate: typ === 'convocatoria' ? ed : sd,
                 projectedNps: projNps
             };
+            const linkedContent = contenidos.find(c => c.eventId === pendingAction.id);
+            if (linkedContent && linkedContent.date !== sd) {
+                linkedContent.date = sd;
+                saveContenidosToStorage();
+            }
         }
         showToast('Acción actualizada', 'success');
     } else {

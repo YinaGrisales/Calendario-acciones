@@ -462,6 +462,16 @@
         </div>
     </div>
 
+    <!-- MODAL: VINCULAR CONTENIDOS -->
+    <div id="modal-link-contenidos" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[510] p-4 modal-backdrop">
+        <div class="modal-content bg-white w-full max-w-md rounded-2xl p-5 shadow-2xl border border-slate-100 flex flex-col max-h-[75vh]">
+            <h2 class="font-black text-slate-800 text-[11px] border-b pb-3 uppercase tracking-[0.15em]">Vincular planificación → contenidos</h2>
+            <p class="text-[9px] text-slate-400 mt-2">Selecciona los contenidos que quieres agregar:</p>
+            <div id="link-contenidos-list" class="p-2 overflow-y-auto space-y-2 mt-2 scrollbar-hide flex-1"></div>
+            <button onclick="closeModal('modal-link-contenidos')" class="mt-4 text-[9px] text-slate-300 hover:text-slate-500 font-bold uppercase tracking-widest transition-colors">Cerrar</button>
+        </div>
+    </div>
+
     <!-- MODAL: SETTINGS -->
     <div id="modal-settings" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center z-[520] p-4 modal-backdrop">
         <div class="modal-content bg-white w-full max-w-sm rounded-2xl p-5 shadow-2xl border border-slate-100 max-h-[80vh] flex flex-col">
