@@ -464,8 +464,8 @@ function linkPlanningToContenidos() {
         showToast('No hay eventos de contenido en planificación', 'warning');
         return;
     }
-    const existingKeys = new Set(contenidos.map(c => c.eventId).filter(Boolean));
-    const available = contentEvents.filter(e => !existingKeys.has(e.id));
+    const existingKeys = new Set(contenidos.map(c => String(c.eventId)).filter(s => s !== 'undefined'));
+    const available = contentEvents.filter(e => !existingKeys.has(String(e.id)));
     if (!available.length) {
         showToast('Todos los contenidos ya están vinculados', 'info');
         return;
@@ -491,7 +491,7 @@ function linkPlanningToContenidos() {
 function addSingleContentFromPlanning(eventId, btn) {
     const e = events.find(ev => ev.id === eventId);
     if (!e) return;
-    if (contenidos.some(c => c.eventId === eventId)) {
+    if (contenidos.some(c => String(c.eventId) === String(eventId))) {
         showToast('Este contenido ya fue vinculado', 'info');
         return;
     }
@@ -521,10 +521,12 @@ function updateContentField(id, field, value) {
     item[field] = value;
 
     if (field === 'date' && item.eventId) {
-        const ev = events.find(e => e.id === item.eventId);
+        const ev = events.find(e => String(e.id) === String(item.eventId));
         if (ev && ev.date !== value) {
             ev.date = value;
+            if (ev.type !== 'convocatoria') ev.endDate = value;
             savePlanningToStorage();
+            refreshViews();
         }
     }
 
@@ -1510,7 +1512,7 @@ function saveEvent() {
                 endDate: typ === 'convocatoria' ? ed : sd,
                 projectedNps: projNps
             };
-            const linkedContent = contenidos.find(c => c.eventId === pendingAction.id);
+            const linkedContent = contenidos.find(c => String(c.eventId) === String(pendingAction.id));
             if (linkedContent && linkedContent.date !== sd) {
                 linkedContent.date = sd;
                 saveContenidosToStorage();
