@@ -475,7 +475,6 @@ function renderContenidosTable() {
             <td><select onchange="updateContentField(${row.id},'contentType',this.value)" class="text-[9px] text-slate-600 bg-transparent border-none">
                 ${['Post','Reel','Story','Video','Blog','Live','Otro'].map(t => `<option ${t === row.contentType ? 'selected' : ''}>${t}</option>`).join('')}
             </select></td>
-            <td><input type="text" value="${escapeHTML(row.description || '')}" onchange="updateContentField(${row.id},'description',this.value)" placeholder="Descripción..." class="text-[9px] text-slate-600 bg-transparent border-none w-full"></td>
             <td class="max-w-[120px]">
                 ${row.link
                     ? `<a href="${escapeHTML(row.link)}" target="_blank" rel="noopener" class="text-[9px] text-indigo-500 font-bold underline truncate block max-w-[100px]" title="${escapeHTML(row.link)}">Ver ↗</a>`
