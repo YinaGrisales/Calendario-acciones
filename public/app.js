@@ -515,19 +515,48 @@ function addSingleContentFromPlanning(eventId, btn) {
     }
 }
 
+function syncDateAcrossViews(eventId, affiliateName, newDate, source) {
+    let changed = false;
+    if (source !== 'planning' && eventId) {
+        const ev = events.find(e => String(e.id) === String(eventId));
+        if (ev && ev.date !== newDate) {
+            ev.date = newDate;
+            if (ev.type !== 'convocatoria') ev.endDate = newDate;
+            changed = true;
+            savePlanningToStorage();
+        }
+    }
+    if (source !== 'contenidos') {
+        const ct = eventId
+            ? contenidos.find(c => String(c.eventId) === String(eventId))
+            : contenidos.find(c => c.affiliate === affiliateName && c.date !== newDate);
+        if (ct && ct.date !== newDate) {
+            ct.date = newDate;
+            changed = true;
+            saveContenidosToStorage();
+        }
+    }
+    if (source !== 'results') {
+        const res = eventId
+            ? results.find(r => String(r.eventId) === String(eventId))
+            : null;
+        if (res && res.date !== newDate) {
+            res.date = newDate;
+            changed = true;
+            debouncedSaveResults();
+        }
+    }
+    if (changed) refreshViews();
+}
+
 function updateContentField(id, field, value) {
     const item = contenidos.find(c => c.id === id);
     if (!item) return;
+    const oldDate = item.date;
     item[field] = value;
 
-    if (field === 'date' && item.eventId) {
-        const ev = events.find(e => String(e.id) === String(item.eventId));
-        if (ev && ev.date !== value) {
-            ev.date = value;
-            if (ev.type !== 'convocatoria') ev.endDate = value;
-            savePlanningToStorage();
-            refreshViews();
-        }
+    if (field === 'date') {
+        syncDateAcrossViews(item.eventId, item.affiliate, value, 'contenidos');
     }
 
     saveContenidosToStorage();
@@ -1389,6 +1418,9 @@ function updateResultValue(id, field, val) {
     if (!r) return;
     if (field === 'name' || field === 'date' || field === 'type') {
         r[field] = val;
+        if (field === 'date') {
+            syncDateAcrossViews(r.eventId, r.name, val, 'results');
+        }
         renderResultsTable();
     } else if (field === 'notes') {
         r[field] = val;
@@ -1512,11 +1544,7 @@ function saveEvent() {
                 endDate: typ === 'convocatoria' ? ed : sd,
                 projectedNps: projNps
             };
-            const linkedContent = contenidos.find(c => String(c.eventId) === String(pendingAction.id));
-            if (linkedContent && linkedContent.date !== sd) {
-                linkedContent.date = sd;
-                saveContenidosToStorage();
-            }
+            syncDateAcrossViews(pendingAction.id, aff, sd, 'planning');
         }
         showToast('Acción actualizada', 'success');
     } else {
@@ -1587,6 +1615,7 @@ function linkEventToResults(id) {
     if (!e) return;
     results.unshift({
         id: Date.now(),
+        eventId: e.id,
         name: e.affiliate,
         date: e.date,
         type: e.type.charAt(0).toUpperCase() + e.type.slice(1),
