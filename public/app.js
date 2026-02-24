@@ -1020,12 +1020,14 @@ function updateResultStats() {
     });
 
     const qProj = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+    const qTrials = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     const qCacInv = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     const qCacNps = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
     fil.forEach(r => {
         if (r.date) {
             const m = new Date(r.date.replace(/-/g,'/')).getMonth();
             const qId = m < 3 ? 'Q1' : m < 6 ? 'Q2' : m < 9 ? 'Q3' : 'Q4';
+            qTrials[qId] += (r.trials || 0);
             if (!r.confirmed) qProj[qId] += (r.projectedNps || 0);
             if (r.confirmed) {
                 const rowComis = r.hasCommission !== false ? COMISION_POR_NP * (r.nps || 0) : 0;
@@ -1037,6 +1039,7 @@ function updateResultStats() {
 
     safeHTML('res-stats-quarters', qs.map(q => {
         const tableau = quarterActualNps[q.id] || 0;
+        const trialsQ = qTrials[q.id] || 0;
         const meta = quarterProjections[q.id] || 0;
         const projQ = qProj[q.id] || 0;
         const invQ = qCacInv[q.id] || 0;
@@ -1054,25 +1057,41 @@ function updateResultStats() {
         const cacAccQ = npsAccQ > 0 ? invQ / npsAccQ / TRM : 0;
         const cacGenQ = tableau > 0 ? invQ / tableau / TRM : 0;
 
+        const cvrQ = trialsQ > 0 ? (tableau / trialsQ * 100).toFixed(1) : '0';
+
         const isActive = currentResultPeriod === q.id;
         const ringCls = isActive ? 'ring-2 ring-violet-400 ring-inset' : '';
         return `<div class="flex flex-col items-center cursor-pointer hover:bg-violet-50 rounded-xl p-3 transition-colors ${ringCls} border border-slate-100" onclick="setResultPeriod('${q.id}')">
             <p class="text-sm font-black text-indigo-500 uppercase tracking-wide">${q.id}</p>
-            <div class="flex items-center gap-1.5 mt-2">
-                <span class="text-xs text-emerald-500 font-bold">Tableau:</span>
-                <input type="text" value="${tableau}" onclick="event.stopPropagation()"
-                    onchange="handleQActualInput('${q.id}', this)"
-                    class="w-16 text-center text-sm font-bold rounded-lg border border-emerald-300 text-emerald-700 bg-emerald-50 focus:border-emerald-500 focus:outline-none px-2 py-1">
+            <div class="flex items-center gap-2 mt-2">
+                <span class="text-[10px] text-amber-500 font-bold">Trials:</span>
+                <span class="text-sm font-black text-amber-600">${trialsQ}</span>
             </div>
-            <div class="flex items-center gap-1.5 mt-1.5">
-                <span class="text-xs text-violet-500 font-bold">Meta:</span>
-                <input type="text" value="${meta}" onclick="event.stopPropagation()"
-                    onchange="handleQProjectionInput('${q.id}', this)"
-                    class="w-16 text-center text-sm font-bold rounded-lg border border-violet-300 text-violet-700 bg-violet-50 focus:border-violet-500 focus:outline-none px-2 py-1">
+            <div class="flex items-center gap-2 mt-0.5">
+                <span class="text-[10px] text-emerald-500 font-bold">NPs Tab:</span>
+                <span class="text-sm font-black text-emerald-600">${tableau}</span>
+            </div>
+            <div class="flex items-center gap-2 mt-0.5">
+                <span class="text-[10px] text-cyan-500 font-bold">CVR:</span>
+                <span class="text-sm font-black text-cyan-600">${cvrQ}%</span>
             </div>
             <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-1">
-                <span class="text-xs font-bold ${deltaTvMcls}" data-q-faltan-real="${q.id}">Tableau vs Meta: ${deltaTvMtxt}</span>
-                <span class="text-xs font-bold ${deltaTPcls}" data-q-faltan-proy="${q.id}">Tab+Proy vs Meta: ${deltaTPtxt}</span>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] text-emerald-500 font-bold">Tableau:</span>
+                    <input type="text" value="${tableau}" onclick="event.stopPropagation()"
+                        onchange="handleQActualInput('${q.id}', this)"
+                        class="w-14 text-center text-xs font-bold rounded-lg border border-emerald-300 text-emerald-700 bg-emerald-50 focus:border-emerald-500 focus:outline-none px-1.5 py-0.5">
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] text-violet-500 font-bold">Meta:</span>
+                    <input type="text" value="${meta}" onclick="event.stopPropagation()"
+                        onchange="handleQProjectionInput('${q.id}', this)"
+                        class="w-14 text-center text-xs font-bold rounded-lg border border-violet-300 text-violet-700 bg-violet-50 focus:border-violet-500 focus:outline-none px-1.5 py-0.5">
+                </div>
+            </div>
+            <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-1">
+                <span class="text-[10px] font-bold ${deltaTvMcls}" data-q-faltan-real="${q.id}">Tableau vs Meta: ${deltaTvMtxt}</span>
+                <span class="text-[10px] font-bold ${deltaTPcls}" data-q-faltan-proy="${q.id}">Tab+Proy vs Meta: ${deltaTPtxt}</span>
             </div>
             <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-0.5">
                 <span class="text-[8px] font-bold px-2 py-0.5 rounded-md ${cacColor(cacAccQ).badge}">CAC Acc: ${fmtUSD.format(cacAccQ)}</span>
