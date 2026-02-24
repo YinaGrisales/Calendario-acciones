@@ -786,8 +786,8 @@ function updateStats() {
     safeHTML('stats-quarters', qs.map(q =>
         `<div class="flex flex-col items-center py-2 px-1 rounded-lg hover:bg-indigo-50 transition-colors">
             <p class="text-xs font-black text-indigo-500 uppercase tracking-wide">${q.id}</p>
-            <span class="text-xl font-black text-slate-800 mt-1">${q.cl}<span class="text-slate-300 font-medium mx-0.5">/</span>${q.ct}</span>
-            <span class="text-[10px] text-slate-400 font-medium mt-0.5">clases / contenido</span>
+            <span class="text-2xl font-black text-slate-800 mt-1">${q.cl + q.ct}</span>
+            <span class="text-[10px] text-slate-400 font-medium mt-0.5">${q.cl} clases + ${q.ct} contenido</span>
         </div>`
     ).join(''));
 
