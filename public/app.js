@@ -1315,7 +1315,7 @@ function updateCalculatedCells(id) {
     if (steps4El) {
         const target = row.steps4_target || 0;
         if (target > 0) {
-            const pct = (row.nps || 0) / target * 100;
+            const pct = (row.nps || 0) > 0 ? target / (row.nps || 1) * 100 : 0;
             steps4El.innerText = pct.toFixed(1) + '%';
             steps4El.className = `cell-steps4-pct font-bold ${pct >= 100 ? 'text-emerald-600' : 'text-amber-600'}`;
         } else {
@@ -1385,7 +1385,7 @@ function renderResultsTable() {
             <td class="formula-col text-[7px]">
                 <div class="flex flex-col items-center gap-0.5">
                     <input type="text" value="${format(row.steps4_target)}" oninput="handleNumberInput(this, ${row.id}, 'steps4_target')" class="w-10 text-center text-[7px] text-slate-400" placeholder="Meta">
-                    <span class="cell-steps4-pct font-bold ${row.steps4_target > 0 ? ((row.nps || 0) / row.steps4_target * 100 >= 100 ? 'text-emerald-600' : 'text-amber-600') : 'text-slate-300'}">${row.steps4_target > 0 ? ((row.nps || 0) / row.steps4_target * 100).toFixed(1) + '%' : '—'}</span>
+                    <span class="cell-steps4-pct font-bold ${row.steps4_target > 0 && (row.nps || 0) > 0 ? (row.steps4_target / (row.nps || 1) * 100 >= 100 ? 'text-emerald-600' : 'text-amber-600') : 'text-slate-300'}">${row.steps4_target > 0 && (row.nps || 0) > 0 ? (row.steps4_target / (row.nps || 1) * 100).toFixed(1) + '%' : '—'}</span>
                 </div>
             </td>
             <td class="cursor-pointer" onclick="openNoteModal(${row.id})">
@@ -1933,7 +1933,7 @@ function exportCSV() {
         const cacUsd = r.nps > 0 ? (total / r.nps / TRM).toFixed(2) : '0';
         const delta = (r.nps || 0) - (r.projectedNps || 0);
         const steps4Target = r.steps4_target || 0;
-        const steps4Pct = steps4Target > 0 ? ((r.nps || 0) / steps4Target * 100).toFixed(1) : '0';
+        const steps4Pct = steps4Target > 0 && (r.nps || 0) > 0 ? (steps4Target / (r.nps || 1) * 100).toFixed(1) : '0';
         return [
             r.name, r.date, r.type,
             r.wa_group || 0, r.attendees || 0, r.trials || 0, r.nps || 0,
