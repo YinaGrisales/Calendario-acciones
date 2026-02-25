@@ -1096,9 +1096,9 @@ function updateResultStats() {
     safeSet('res-stat-pending', pendingCount);
     const pendingLabelEl = $('res-stat-pending-label');
     if (pendingLabelEl) {
-        if (currentResultPeriod === 'all') pendingLabelEl.innerText = 'Pendientes Total';
-        else if (isQFilter) pendingLabelEl.innerText = `Pendientes ${currentResultPeriod}`;
-        else pendingLabelEl.innerText = `Pendientes ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
+        if (currentResultPeriod === 'all') pendingLabelEl.innerText = 'Acciones Pendientes';
+        else if (isQFilter) pendingLabelEl.innerText = `Acciones Pendientes ${currentResultPeriod}`;
+        else pendingLabelEl.innerText = `Acciones Pendientes ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
     }
 
     const trialsLabelEl = $('res-stat-trials-label');
