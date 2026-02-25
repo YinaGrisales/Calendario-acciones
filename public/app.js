@@ -961,14 +961,17 @@ function updateQDelta(q) {
     });
 
     const deltaTvM = tableau - meta;
+    const pctTvM = meta > 0 ? (tableau / meta * 100).toFixed(1) : 0;
     faltanRealEl.className = `text-xs font-bold ${deltaTvM < 0 ? 'text-red-500' : 'text-emerald-500'}`;
-    faltanRealEl.innerText = 'Tableau vs Meta: ' + (deltaTvM < 0 ? 'Faltan: ' + Math.abs(deltaTvM) : 'Cumplida');
+    faltanRealEl.innerText = 'Tableau vs Meta: ' + (deltaTvM < 0 ? `Faltan: ${Math.abs(deltaTvM)} (${pctTvM}%)` : `Cumplida (${pctTvM}%)`);
 
     if (faltanProyEl) {
-        const deltaTPvM = (tableau + projQ) - meta;
+        const tabPlusProjQ = tableau + projQ;
+        const deltaTPvM = tabPlusProjQ - meta;
+        const pctTPvM = meta > 0 ? (tabPlusProjQ / meta * 100).toFixed(1) : 0;
         const cls = deltaTPvM < 0 ? 'text-amber-500' : 'text-emerald-500';
         faltanProyEl.className = `text-xs font-bold ${cls}`;
-        faltanProyEl.innerText = 'Tab+Proy vs Meta: ' + (deltaTPvM < 0 ? 'Faltan: ' + Math.abs(deltaTPvM) : 'Cumplida');
+        faltanProyEl.innerText = 'Tab+Proy vs Meta: ' + (deltaTPvM < 0 ? `Faltan: ${Math.abs(deltaTPvM)} (${pctTPvM}%)` : `Cumplida (${pctTPvM}%)`);
     }
 }
 
@@ -1192,13 +1195,15 @@ function updateResultStats() {
         const npsAccQ = qCacNps[q.id] || 0;
 
         const deltaTvM = tableau - meta;
+        const pctTvM = meta > 0 ? (tableau / meta * 100).toFixed(1) : 0;
         const deltaTvMcls = deltaTvM < 0 ? 'text-red-500' : 'text-emerald-500';
-        const deltaTvMtxt = deltaTvM < 0 ? 'Faltan: ' + Math.abs(deltaTvM) : 'Cumplida';
+        const deltaTvMtxt = deltaTvM < 0 ? `Faltan: ${Math.abs(deltaTvM)} (${pctTvM}%)` : `Cumplida (${pctTvM}%)`;
 
         const tabPlusProy = tableau + projQ;
         const deltaTPvM = tabPlusProy - meta;
+        const pctTPvM = meta > 0 ? (tabPlusProy / meta * 100).toFixed(1) : 0;
         const deltaTPcls = deltaTPvM < 0 ? 'text-amber-500' : 'text-emerald-500';
-        const deltaTPtxt = deltaTPvM < 0 ? 'Faltan: ' + Math.abs(deltaTPvM) : 'Cumplida';
+        const deltaTPtxt = deltaTPvM < 0 ? `Faltan: ${Math.abs(deltaTPvM)} (${pctTPvM}%)` : `Cumplida (${pctTPvM}%)`;
 
         const cacAccQ = npsAccQ > 0 ? invQ / npsAccQ / TRM : 0;
         const cacGenQ = tableau > 0 ? invQ / tableau / TRM : 0;
