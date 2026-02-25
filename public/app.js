@@ -1089,6 +1089,15 @@ function updateResultStats() {
     safeSet('res-stat-combo-detail', `${displayNps} + ${projSum}`);
     safeSet('res-stat-inv', fmtCOP.format(pInv));
 
+    const pendingCount = periodFil.filter(r => !r.confirmed).length;
+    safeSet('res-stat-pending', pendingCount);
+    const pendingLabelEl = $('res-stat-pending-label');
+    if (pendingLabelEl) {
+        if (currentResultPeriod === 'all') pendingLabelEl.innerText = 'Pendientes Total';
+        else if (isQFilter) pendingLabelEl.innerText = `Pendientes ${currentResultPeriod}`;
+        else pendingLabelEl.innerText = `Pendientes ${MESES_CORTOS[parseInt(currentResultPeriod)]}`;
+    }
+
     const trialsLabelEl = $('res-stat-trials-label');
     const cvrLabelEl = $('res-stat-cvr-label');
     if (trialsLabelEl) {
