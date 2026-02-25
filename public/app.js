@@ -1311,6 +1311,18 @@ function updateCalculatedCells(id) {
         cacUsdEl.innerText = fmtUSD.format(cacUsdVal);
         cacUsdEl.className = `formula-col text-[7px] cell-cac-usd font-bold ${cacTextColor(cacUsdVal)}`;
     }
+    const steps4El = rowEl.querySelector('.cell-steps4-pct');
+    if (steps4El) {
+        const target = row.steps4_target || 0;
+        if (target > 0) {
+            const pct = (row.nps || 0) / target * 100;
+            steps4El.innerText = pct.toFixed(1) + '%';
+            steps4El.className = `cell-steps4-pct font-bold ${pct >= 100 ? 'text-emerald-600' : 'text-amber-600'}`;
+        } else {
+            steps4El.innerText = '—';
+            steps4El.className = 'cell-steps4-pct font-bold text-slate-300';
+        }
+    }
 }
 
 function renderResultsTable() {
@@ -1370,6 +1382,12 @@ function renderResultsTable() {
             <td class="total-col text-[7px] cell-total">${fmtCOP.format(total)}</td>
             <td class="formula-col text-[7px] cell-cac-cop">${fmtCOP.format(cac)}</td>
             <td class="formula-col text-[7px] cell-cac-usd font-bold ${cacTextColor(cac / TRM)}">${fmtUSD.format(cac / TRM)}</td>
+            <td class="formula-col text-[7px]">
+                <div class="flex flex-col items-center gap-0.5">
+                    <input type="text" value="${format(row.steps4_target)}" oninput="handleNumberInput(this, ${row.id}, 'steps4_target')" class="w-10 text-center text-[7px] text-slate-400" placeholder="Meta">
+                    <span class="cell-steps4-pct font-bold ${row.steps4_target > 0 ? ((row.nps || 0) / row.steps4_target * 100 >= 100 ? 'text-emerald-600' : 'text-amber-600') : 'text-slate-300'}">${row.steps4_target > 0 ? ((row.nps || 0) / row.steps4_target * 100).toFixed(1) + '%' : '—'}</span>
+                </div>
+            </td>
             <td class="cursor-pointer" onclick="openNoteModal(${row.id})">
                 <div class="w-24 text-[9px] text-slate-400 italic truncate hover:text-indigo-500 transition-colors" title="${escapeHTML(row.notes || '')}">${row.notes ? escapeHTML(row.notes).substring(0, 20) + (row.notes.length > 20 ? '...' : '') : '<span class=&quot;text-slate-200&quot;>+ nota</span>'}</div>
             </td>
@@ -1907,20 +1925,22 @@ function exportCSV() {
         return;
     }
 
-    const headers = ['Afiliado','Fecha','Tipo','WA_Group','Asistentes','Trials','NPs','Proy_NPs','Delta_NP','Confirmado','Con_Comision','Fijo','Variable','Comisiones','Pauta','TOTAL_INV','CAC_COP','CAC_USD','Notas'];
+    const headers = ['Afiliado','Fecha','Tipo','WA_Group','Asistentes','Trials','NPs','Proy_NPs','Delta_NP','Confirmado','Con_Comision','Fijo','Variable','Comisiones','Pauta','TOTAL_INV','CAC_COP','CAC_USD','Meta_4Steps','Pct_4Steps','Notas'];
     const rows = results.map(r => {
         const comis = r.hasCommission !== false ? COMISION_POR_NP * (r.nps || 0) : 0;
         const total = (r.fixed || 0) + (r.variable || 0) + comis + (r.pauta || 0);
         const cacCop = r.nps > 0 ? Math.round(total / r.nps) : 0;
         const cacUsd = r.nps > 0 ? (total / r.nps / TRM).toFixed(2) : '0';
         const delta = (r.nps || 0) - (r.projectedNps || 0);
+        const steps4Target = r.steps4_target || 0;
+        const steps4Pct = steps4Target > 0 ? ((r.nps || 0) / steps4Target * 100).toFixed(1) : '0';
         return [
             r.name, r.date, r.type,
             r.wa_group || 0, r.attendees || 0, r.trials || 0, r.nps || 0,
             r.projectedNps || 0, delta, r.confirmed ? 'Si' : 'No',
             r.hasCommission !== false ? 'Si' : 'No',
             r.fixed || 0, r.variable || 0, comis, r.pauta || 0,
-            total, cacCop, cacUsd,
+            total, cacCop, cacUsd, steps4Target, steps4Pct + '%',
             r.notes || ''
         ];
     });
