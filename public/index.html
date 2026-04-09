@@ -382,47 +382,37 @@
             </div>
 
             <!-- Footer bar -->
-            <div class="bg-gradient-to-r from-slate-900 to-slate-800 p-3 rounded-2xl text-white flex flex-wrap justify-between items-center shadow-lg gap-2">
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-[8px] text-slate-300 font-bold uppercase">TRM:</span>
-                        <span class="text-[8px] text-slate-300">$</span>
-                        <input type="text" id="input-trm" value="3.700"
-                            onchange="updateTRM(this)"
-                            class="bg-white border border-slate-600 rounded-lg text-[9px] font-bold text-slate-900 text-center w-16 py-1 px-1.5 outline-none focus:border-indigo-400 transition-colors">
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-[8px] text-slate-300 font-bold uppercase">Comisiones hasta Abr 12:</span>
-                        <span class="text-[8px] text-slate-300">$</span>
-                        <input type="text" id="input-comision-base" value="24.900"
-                            onchange="updateComisionBase(this)"
-                            class="bg-white border border-slate-600 rounded-lg text-[9px] font-bold text-slate-900 text-center w-16 py-1 px-1.5 outline-none focus:border-indigo-400 transition-colors">
-                        <span class="text-[7px] text-slate-400 font-mono">×1 + ×</span>
-                        <input type="text" id="input-comision-pct" value="55"
-                            onchange="updateComisionPct(this)"
-                            class="bg-white border border-slate-600 rounded-md text-[7px] font-bold text-slate-900 text-center w-6 py-0.5 px-0.5 outline-none focus:border-indigo-400 transition-colors">
-                        <span class="text-[7px] text-slate-400 font-mono">%</span>
-                        <span class="text-[7px] text-slate-400">=</span>
-                        <span class="text-[8px] text-emerald-400 font-bold" id="comision-result">$43.575</span>
-                        <span class="text-[7px] text-slate-400">/NP</span>
-                    </div>
+            <div class="bg-gradient-to-r from-slate-900 to-slate-800 px-3 py-2 rounded-2xl text-white flex flex-wrap items-center justify-center gap-x-4 gap-y-1 shadow-lg">
+                <div class="flex items-center gap-1">
+                    <span class="text-[7px] text-slate-400 font-bold uppercase">TRM $</span>
+                    <input type="text" id="input-trm" value="3.700" onchange="updateTRM(this)"
+                        class="bg-white/10 border border-slate-600 rounded text-[8px] font-bold text-white text-center w-12 py-0.5 px-1 outline-none focus:border-indigo-400 transition-colors">
                 </div>
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-1.5">
-                        <span class="text-[8px] text-amber-300 font-bold uppercase">Desde Abr 13:</span>
-                        <span class="text-[8px] text-slate-300">$</span>
-                        <input type="text" id="input-comision-base-2" value="24.900"
-                            onchange="updateComisionBase2(this)"
-                            class="bg-white border border-slate-600 rounded-lg text-[9px] font-bold text-slate-900 text-center w-16 py-1 px-1.5 outline-none focus:border-indigo-400 transition-colors">
-                        <span class="text-[7px] text-slate-400 font-mono">×1 + ×</span>
-                        <input type="text" id="input-comision-pct-2" value="55"
-                            onchange="updateComisionPct2(this)"
-                            class="bg-white border border-slate-600 rounded-md text-[7px] font-bold text-slate-900 text-center w-6 py-0.5 px-0.5 outline-none focus:border-indigo-400 transition-colors">
-                        <span class="text-[7px] text-slate-400 font-mono">%</span>
-                        <span class="text-[7px] text-slate-400">=</span>
-                        <span class="text-[8px] text-amber-300 font-bold" id="comision-result-2">$43.575</span>
-                        <span class="text-[7px] text-slate-400">/NP</span>
-                    </div>
+                <span class="text-slate-600 text-[8px]">|</span>
+                <div class="flex items-center gap-1">
+                    <span class="text-[7px] text-slate-400 font-bold uppercase">Hasta Abr 12:</span>
+                    <span class="text-[7px] text-slate-500">$</span>
+                    <input type="text" id="input-comision-base" value="24.900" onchange="updateComisionBase(this)"
+                        class="bg-white/10 border border-slate-600 rounded text-[8px] font-bold text-white text-center w-12 py-0.5 px-1 outline-none focus:border-indigo-400 transition-colors">
+                    <span class="text-[6px] text-slate-500">×1+</span>
+                    <input type="text" id="input-comision-pct" value="55" onchange="updateComisionPct(this)"
+                        class="bg-white/10 border border-slate-600 rounded text-[7px] font-bold text-white text-center w-5 py-0.5 outline-none focus:border-indigo-400 transition-colors">
+                    <span class="text-[6px] text-slate-500">%=</span>
+                    <span class="text-[7px] text-emerald-400 font-bold" id="comision-result">$43.575</span>
+                    <span class="text-[6px] text-slate-500">/NP</span>
+                </div>
+                <span class="text-slate-600 text-[8px]">|</span>
+                <div class="flex items-center gap-1">
+                    <span class="text-[7px] text-amber-300 font-bold uppercase">Abr 13+:</span>
+                    <span class="text-[7px] text-slate-500">$</span>
+                    <input type="text" id="input-comision-base-2" value="24.900" onchange="updateComisionBase2(this)"
+                        class="bg-white/10 border border-slate-600 rounded text-[8px] font-bold text-white text-center w-12 py-0.5 px-1 outline-none focus:border-indigo-400 transition-colors">
+                    <span class="text-[6px] text-slate-500">×1+</span>
+                    <input type="text" id="input-comision-pct-2" value="55" onchange="updateComisionPct2(this)"
+                        class="bg-white/10 border border-slate-600 rounded text-[7px] font-bold text-white text-center w-5 py-0.5 outline-none focus:border-indigo-400 transition-colors">
+                    <span class="text-[6px] text-slate-500">%=</span>
+                    <span class="text-[7px] text-amber-300 font-bold" id="comision-result-2">$43.575</span>
+                    <span class="text-[6px] text-slate-500">/NP</span>
                 </div>
             </div>
         </section>
