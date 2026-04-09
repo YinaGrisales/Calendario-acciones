@@ -1366,7 +1366,7 @@ function updateCalculatedCells(id) {
     if (!row) return;
     const comis = row.hasCommission !== false ? getComisionPorNp(row) * (row.nps || 0) : 0;
     const total = (row.fixed || 0) + (row.variable || 0) + comis + (row.pauta || 0);
-    const cac = row.nps > 0 ? Math.round(total / row.nps) : 0;
+    const cac = row.nps > 0 ? Math.round(total / row.nps) : total;
 
     const rowEl = document.querySelector(`[data-row-id="${id}"]`);
     if (!rowEl) return;
@@ -1419,7 +1419,7 @@ function renderResultsTable() {
     body.innerHTML = filteredRows.map(row => {
         const comis = row.hasCommission !== false ? getComisionPorNp(row) * (row.nps || 0) : 0;
         const total = (row.fixed || 0) + (row.variable || 0) + comis + (row.pauta || 0);
-        const cac = row.nps > 0 ? Math.round(total / row.nps) : 0;
+        const cac = row.nps > 0 ? Math.round(total / row.nps) : total;
 
         return `<tr data-row-id="${row.id}" class="group">
             <td class="pl-2 py-1.5 text-left">
@@ -2006,8 +2006,8 @@ function exportCSV() {
     const rows = results.map(r => {
         const comis = r.hasCommission !== false ? getComisionPorNp(r) * (r.nps || 0) : 0;
         const total = (r.fixed || 0) + (r.variable || 0) + comis + (r.pauta || 0);
-        const cacCop = r.nps > 0 ? Math.round(total / r.nps) : 0;
-        const cacUsd = r.nps > 0 ? (total / r.nps / TRM).toFixed(2) : '0';
+        const cacCop = r.nps > 0 ? Math.round(total / r.nps) : total;
+        const cacUsd = r.nps > 0 ? (total / r.nps / TRM).toFixed(2) : (total / TRM).toFixed(2);
         const delta = (r.nps || 0) - (r.projectedNps || 0);
         const steps4Target = r.steps4_target || 0;
         const steps4Pct = steps4Target > 0 && (r.nps || 0) > 0 ? (steps4Target / (r.nps || 1) * 100).toFixed(1) : '0';
