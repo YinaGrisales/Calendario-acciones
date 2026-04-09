@@ -424,8 +424,7 @@ const CAC_GEN_BADGE_STYLE = {
 function cacGeneralTier(usd) {
     const n = Number(usd);
     if (!Number.isFinite(n) || n <= 0) return 'na';
-    if (n < 81) return 'ok';
-    if (n <= 81) return 'warn';
+    if (n <= 81) return 'ok';
     return 'bad';
 }
 
@@ -1134,26 +1133,27 @@ function updateResultStats() {
     const cacAcciones = cacNpsAcc > 0 ? cacInv / cacNpsAcc / TRM : 0;
     const cacGeneral = displayNps > 0 ? cacInv / displayNps / TRM : 0;
     const cAcc2 = cacColor(cacAcciones);
+    const cGen2 = cacColor(cacGeneral);
     const genTier = cacGeneralTier(cacGeneral);
     const cardAcc2 = $('res-cac-card-acc');
     const cardGen2 = $('res-cac-card-gen');
     if (cardAcc2) cardAcc2.className = `stat-card p-3 rounded-2xl border-2 flex flex-col items-center shadow-sm transition-colors ${cAcc2.bg}`;
     if (cardGen2) {
-        cardGen2.className = 'stat-card p-3 rounded-2xl border-2 flex flex-col items-center shadow-sm transition-colors';
+        cardGen2.className = `stat-card p-3 rounded-2xl border-2 flex flex-col items-center shadow-sm transition-colors ${cGen2.bg}`;
         cardGen2.setAttribute('data-cac-gen-tier', genTier);
     }
     const elCacAccL2 = $('res-cac-acc-label');
     const elCacGenL2 = $('res-cac-gen-label');
     if (elCacAccL2) elCacAccL2.className = `text-[9px] font-bold uppercase tracking-wider ${cAcc2.label}`;
-    if (elCacGenL2) elCacGenL2.className = 'text-[9px] font-bold uppercase tracking-wider';
+    if (elCacGenL2) elCacGenL2.className = `text-[9px] font-bold uppercase tracking-wider ${cGen2.label}`;
     const elCacAcc2 = $('res-cac-acciones');
     const elCacGen2 = $('res-cac-general');
     if (elCacAcc2) { elCacAcc2.innerText = fmtUSD.format(cacAcciones); elCacAcc2.className = `text-2xl font-black mt-0.5 ${cAcc2.text}`; }
-    if (elCacGen2) { elCacGen2.innerText = fmtUSD.format(cacGeneral); elCacGen2.className = 'text-2xl font-black mt-0.5'; }
+    if (elCacGen2) { elCacGen2.innerText = fmtUSD.format(cacGeneral); elCacGen2.className = `text-2xl font-black mt-0.5 ${cGen2.text}`; }
     const elCacAccD2 = $('res-cac-acc-detail');
     const elCacGenD2 = $('res-cac-gen-detail');
     if (elCacAccD2) elCacAccD2.className = `text-[7px] mt-0.5 font-semibold ${cAcc2.detail}`;
-    if (elCacGenD2) elCacGenD2.className = 'text-[7px] mt-0.5 font-semibold';
+    if (elCacGenD2) elCacGenD2.className = `text-[7px] mt-0.5 font-semibold ${cGen2.detail}`;
 
     const cacAccLabel = $('res-cac-acc-label');
     const cacGenLabel = $('res-cac-gen-label');
@@ -1250,7 +1250,7 @@ function updateResultStats() {
             </div>
             <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-0.5">
                 <span class="text-[8px] font-bold px-2 py-0.5 rounded-md ${cacColor(cacAccQ).badge}">CAC Acc: ${fmtUSD.format(cacAccQ)}</span>
-                <span class="text-[8px] font-bold px-2 py-0.5 rounded-md" style="${CAC_GEN_BADGE_STYLE[cacGeneralTier(cacGenQ)]}">CAC Gen: ${fmtUSD.format(cacGenQ)}</span>
+                <span class="text-[8px] font-bold px-2 py-0.5 rounded-md ${cacColor(cacGenQ).badge}">CAC Gen: ${fmtUSD.format(cacGenQ)}</span>
             </div>
         </div>`;
     }).join(''));
