@@ -146,6 +146,7 @@ function startFirebaseListener() {
         refreshViews();
         suppressCloudSync = false;
         updateSyncIndicator('synced');
+        updateDbSize();
     }, (err) => {
         console.warn('Firebase listener error', err);
         updateSyncIndicator('error');
@@ -158,6 +159,7 @@ function saveToCloud() {
     stateRef.set(getFullState()).then(() => {
         suppressCloudSync = false;
         updateSyncIndicator('synced');
+        updateDbSize();
     }).catch(err => {
         suppressCloudSync = false;
         console.warn('Cloud save failed', err);
@@ -169,6 +171,17 @@ function debouncedSaveToCloud() {
     if (cloudSaveTimeout) clearTimeout(cloudSaveTimeout);
     updateSyncIndicator('pending');
     cloudSaveTimeout = setTimeout(saveToCloud, 1200);
+}
+
+function updateDbSize() {
+    const el = $('db-size-indicator');
+    if (!el) return;
+    const bytes = new Blob([JSON.stringify(getFullState())]).size;
+    if (bytes < 1024) el.innerText = bytes + ' B';
+    else if (bytes < 1048576) el.innerText = (bytes / 1024).toFixed(1) + ' KB';
+    else el.innerText = (bytes / 1048576).toFixed(2) + ' MB';
+    const pct = bytes / (1024 * 1024 * 1024);
+    el.className = pct > 0.8 ? 'text-[7px] text-red-400 font-bold' : pct > 0.5 ? 'text-[7px] text-amber-400 font-bold' : 'text-[7px] text-sky-400 font-bold';
 }
 
 function updateSyncIndicator(state) {
@@ -2075,6 +2088,7 @@ function init() {
         console.error('Error en init local:', err);
     }
     showLoading(false);
+    updateDbSize();
 
     updateSyncIndicator('syncing');
     stateRef.once('value').then(snapshot => {
