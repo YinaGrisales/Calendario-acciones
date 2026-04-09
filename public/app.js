@@ -1317,20 +1317,22 @@ function updateResultStats() {
     }).join(''));
 
     const lNps = {};
-    Object.keys(categories).forEach(k => lNps[k] = 0);
-    periodFil.forEach(r => { const l = getAffiliateLever(r.name); if (l) lNps[l] += (r.nps || 0); });
+    const lAffiliates = {};
+    Object.keys(categories).forEach(k => { lNps[k] = 0; lAffiliates[k] = new Set(); });
+    periodFil.forEach(r => { const l = getAffiliateLever(r.name); if (l) { lNps[l] += (r.nps || 0); if (r.name) lAffiliates[l].add(r.name); } });
 
     const leverColors = { comunidad: '#6366f1', tradicional: '#f59e0b', alianza: '#10b981', dropshipping: '#f43f5e' };
     safeHTML('res-stats-levers', Object.entries(categories).map(([k, c]) => {
         const dim = currentLeverFilter !== 'all' && currentLeverFilter !== k ? 'opacity-30 grayscale' : '';
         const active = currentLeverFilter === k ? 'ring-2 ring-indigo-400' : '';
         const count = periodFil.filter(r => getAffiliateLever(r.name) === k).length;
+        const affiliateCount = lAffiliates[k].size;
         const clr = c.color || leverColors[k] || '#6366f1';
         return `<div class="flex items-center gap-3 p-3 rounded-xl border border-slate-100 cursor-pointer hover:bg-indigo-50 transition-all ${dim} ${active}" onclick="toggleLeverFilter('${k}')">
             <div class="w-3 h-3 rounded-full flex-shrink-0" style="background:${clr}"></div>
             <div class="flex flex-col min-w-0 flex-1">
                 <span class="text-xs font-bold text-slate-700 uppercase tracking-wide truncate">${c.label}</span>
-                <span class="text-[10px] text-slate-400">${count} acciones</span>
+                <span class="text-[10px] text-slate-400">${affiliateCount} afiliado${affiliateCount !== 1 ? 's' : ''} · ${count} acciones</span>
             </div>
             <span class="text-lg font-black text-indigo-600">${lNps[k]}<span class="text-[9px] text-slate-400 font-medium ml-0.5">NPs</span></span>
         </div>`;
