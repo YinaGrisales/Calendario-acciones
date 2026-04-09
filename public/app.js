@@ -399,17 +399,39 @@ function showToast(message, type) {
 }
 
 // ── Helpers ──────────────────────────────────────────────────
+const CAC_PALETTE = {
+    slate: { text: 'text-slate-400', bg: 'bg-slate-50 border-slate-200', label: 'text-slate-400', detail: 'text-slate-300', badge: 'bg-slate-100 text-slate-500' },
+    emerald: { text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-300', label: 'text-emerald-600', detail: 'text-emerald-400', badge: 'bg-emerald-100 text-emerald-700' },
+    amber: { text: 'text-amber-700', bg: 'bg-amber-50 border-amber-300', label: 'text-amber-600', detail: 'text-amber-400', badge: 'bg-amber-100 text-amber-700' },
+    red: { text: 'text-red-700', bg: 'bg-red-50 border-red-300', label: 'text-red-600', detail: 'text-red-400', badge: 'bg-red-100 text-red-700' }
+};
+
 function cacColor(usd) {
-    if (usd <= 0) return { text: 'text-slate-400', bg: 'bg-slate-50 border-slate-200', label: 'text-slate-400', detail: 'text-slate-300', badge: 'bg-slate-100 text-slate-500' };
-    if (usd <= 69) return { text: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-300', label: 'text-emerald-600', detail: 'text-emerald-400', badge: 'bg-emerald-100 text-emerald-700' };
-    if (usd <= 81) return { text: 'text-amber-700', bg: 'bg-amber-50 border-amber-300', label: 'text-amber-600', detail: 'text-amber-400', badge: 'bg-amber-100 text-amber-700' };
-    return { text: 'text-red-700', bg: 'bg-red-50 border-red-300', label: 'text-red-600', detail: 'text-red-400', badge: 'bg-red-100 text-red-700' };
+    const n = Number(usd);
+    if (!Number.isFinite(n) || n <= 0) return CAC_PALETTE.slate;
+    if (n <= 81) return CAC_PALETTE.emerald;
+    return CAC_PALETTE.red;
+}
+
+/** CAC General: verde si el valor es mayor que 0 y menor que 81 USD. */
+const CAC_GEN_BADGE_STYLE = {
+    na: 'background-color:#f1f5f9;color:#64748b',
+    ok: 'background-color:#d1fae5;color:#065f46',
+    warn: 'background-color:#fef3c7;color:#b45309',
+    bad: 'background-color:#fee2e2;color:#b91c1c'
+};
+
+function cacGeneralTier(usd) {
+    const n = Number(usd);
+    if (!Number.isFinite(n) || n <= 0) return 'na';
+    if (n < 81) return 'ok';
+    if (n <= 81) return 'warn';
+    return 'bad';
 }
 
 function cacTextColor(usd) {
     if (usd <= 0) return 'text-slate-400';
-    if (usd <= 69) return 'text-emerald-600';
-    if (usd <= 81) return 'text-amber-500';
+    if (usd <= 81) return 'text-emerald-600';
     return 'text-red-600';
 }
 
@@ -999,16 +1021,14 @@ function handleQProjectionInput(q, el) {
     const val = parseInt(el.value) || 0;
     quarterProjections[q] = val;
     saveQProjectionsToStorage();
-    updateQDelta(q);
-    updateTopStats();
+    updateResultStats();
 }
 
 function handleQActualInput(q, el) {
     const val = parseInt(el.value) || 0;
     quarterActualNps[q] = val;
     saveQActualToStorage();
-    updateQDelta(q);
-    updateTopStats();
+    updateResultStats();
 }
 
 function handleQTrialsInput(q, el) {
@@ -1016,90 +1036,6 @@ function handleQTrialsInput(q, el) {
     quarterActualTrials[q] = val;
     saveQTrialsToStorage();
     updateResultStats();
-}
-
-function updateQDelta(q) {
-    const faltanRealEl = document.querySelector(`[data-q-faltan-real="${q}"]`);
-    const faltanProyEl = document.querySelector(`[data-q-faltan-proy="${q}"]`);
-    if (!faltanRealEl) return;
-
-    const tableau = quarterActualNps[q] || 0;
-    const meta = quarterProjections[q] || 0;
-
-    const qMonths = { Q1: [0,1,2], Q2: [3,4,5], Q3: [6,7,8], Q4: [9,10,11] };
-    let projQ = 0;
-    results.forEach(r => {
-        if (r.date && !r.confirmed) {
-            const m = new Date(r.date.replace(/-/g,'/')).getMonth();
-            if (qMonths[q].includes(m)) projQ += (r.projectedNps || 0);
-        }
-    });
-
-    const deltaTvM = tableau - meta;
-    const pctTvM = meta > 0 ? (tableau / meta * 100).toFixed(1) : 0;
-    faltanRealEl.className = `text-xs font-bold ${deltaTvM < 0 ? 'text-red-500' : 'text-emerald-500'}`;
-    faltanRealEl.innerText = 'Tableau vs Meta: ' + (deltaTvM < 0 ? `Faltan: ${Math.abs(deltaTvM)} (${pctTvM}%)` : `Cumplida (${pctTvM}%)`);
-
-    if (faltanProyEl) {
-        const tabPlusProjQ = tableau + projQ;
-        const deltaTPvM = tabPlusProjQ - meta;
-        const pctTPvM = meta > 0 ? (tabPlusProjQ / meta * 100).toFixed(1) : 0;
-        const cls = deltaTPvM < 0 ? 'text-amber-500' : 'text-emerald-500';
-        faltanProyEl.className = `text-xs font-bold ${cls}`;
-        faltanProyEl.innerText = 'Tab+Proy vs Meta: ' + (deltaTPvM < 0 ? `Faltan: ${Math.abs(deltaTPvM)} (${pctTPvM}%)` : `Cumplida (${pctTPvM}%)`);
-    }
-}
-
-function updateTopStats() {
-    const fil = results.filter(r =>
-        (currentAffiliateFilter === 'all' || r.name === currentAffiliateFilter) &&
-        (currentLeverFilter === 'all' || getAffiliateLever(r.name) === currentLeverFilter)
-    );
-    const periodFil = fil.filter(r => matchesPeriodFilter(r.date, currentResultPeriod));
-    const pNps = periodFil.reduce((acc, r) => acc + (r.nps || 0), 0);
-    const isQFilter = ['Q1','Q2','Q3','Q4'].includes(currentResultPeriod);
-
-    let displayNps = pNps;
-    if (isQFilter) {
-        displayNps = quarterActualNps[currentResultPeriod] || 0;
-    } else if (currentResultPeriod === 'all') {
-        displayNps = (quarterActualNps.Q1 || 0) + (quarterActualNps.Q2 || 0) + (quarterActualNps.Q3 || 0) + (quarterActualNps.Q4 || 0);
-    }
-
-    const projSum = periodFil.reduce((acc, r) => {
-        return acc + (r.confirmed ? 0 : (r.projectedNps || 0));
-    }, 0);
-
-    safeSet('res-stat-nps', displayNps);
-    safeSet('res-stat-nps-acciones', pNps);
-    safeSet('res-stat-proj', projSum);
-
-    const confirmedFil = periodFil.filter(r => r.confirmed);
-    const cacInv = confirmedFil.reduce((acc, r) => {
-        const rowComis = r.hasCommission !== false ? getComisionPorNp(r) * (r.nps || 0) : 0;
-        return acc + (r.fixed || 0) + (r.variable || 0) + rowComis + (r.pauta || 0);
-    }, 0);
-    const cacNps = confirmedFil.reduce((acc, r) => acc + (r.nps || 0), 0);
-    const topCacAcc = cacNps > 0 ? cacInv / cacNps / TRM : 0;
-    const topCacGen = displayNps > 0 ? cacInv / displayNps / TRM : 0;
-    const cAcc = cacColor(topCacAcc);
-    const cGen = cacColor(topCacGen);
-    const cardAcc = $('res-cac-card-acc');
-    const cardGen = $('res-cac-card-gen');
-    if (cardAcc) cardAcc.className = `stat-card p-3 rounded-2xl border-2 flex flex-col items-center shadow-sm transition-colors ${cAcc.bg}`;
-    if (cardGen) cardGen.className = `stat-card p-3 rounded-2xl border-2 flex flex-col items-center shadow-sm transition-colors ${cGen.bg}`;
-    const elCacAccL = $('res-cac-acc-label');
-    const elCacGenL = $('res-cac-gen-label');
-    if (elCacAccL) elCacAccL.className = `text-[9px] font-bold uppercase tracking-wider ${cAcc.label}`;
-    if (elCacGenL) elCacGenL.className = `text-[9px] font-bold uppercase tracking-wider ${cGen.label}`;
-    const elCacAcc = $('res-cac-acciones');
-    const elCacGen = $('res-cac-general');
-    if (elCacAcc) { elCacAcc.innerText = fmtUSD.format(topCacAcc); elCacAcc.className = `text-2xl font-black mt-0.5 ${cAcc.text}`; }
-    if (elCacGen) { elCacGen.innerText = fmtUSD.format(topCacGen); elCacGen.className = `text-2xl font-black mt-0.5 ${cGen.text}`; }
-    const elCacAccD = $('res-cac-acc-detail');
-    const elCacGenD = $('res-cac-gen-detail');
-    if (elCacAccD) elCacAccD.className = `text-[7px] mt-0.5 font-semibold ${cAcc.detail}`;
-    if (elCacGenD) elCacGenD.className = `text-[7px] mt-0.5 font-semibold ${cGen.detail}`;
 }
 
 function getFilteredResults() {
@@ -1198,23 +1134,26 @@ function updateResultStats() {
     const cacAcciones = cacNpsAcc > 0 ? cacInv / cacNpsAcc / TRM : 0;
     const cacGeneral = displayNps > 0 ? cacInv / displayNps / TRM : 0;
     const cAcc2 = cacColor(cacAcciones);
-    const cGen2 = cacColor(cacGeneral);
+    const genTier = cacGeneralTier(cacGeneral);
     const cardAcc2 = $('res-cac-card-acc');
     const cardGen2 = $('res-cac-card-gen');
     if (cardAcc2) cardAcc2.className = `stat-card p-3 rounded-2xl border-2 flex flex-col items-center shadow-sm transition-colors ${cAcc2.bg}`;
-    if (cardGen2) cardGen2.className = `stat-card p-3 rounded-2xl border-2 flex flex-col items-center shadow-sm transition-colors ${cGen2.bg}`;
+    if (cardGen2) {
+        cardGen2.className = 'stat-card p-3 rounded-2xl border-2 flex flex-col items-center shadow-sm transition-colors';
+        cardGen2.setAttribute('data-cac-gen-tier', genTier);
+    }
     const elCacAccL2 = $('res-cac-acc-label');
     const elCacGenL2 = $('res-cac-gen-label');
     if (elCacAccL2) elCacAccL2.className = `text-[9px] font-bold uppercase tracking-wider ${cAcc2.label}`;
-    if (elCacGenL2) elCacGenL2.className = `text-[9px] font-bold uppercase tracking-wider ${cGen2.label}`;
+    if (elCacGenL2) elCacGenL2.className = 'text-[9px] font-bold uppercase tracking-wider';
     const elCacAcc2 = $('res-cac-acciones');
     const elCacGen2 = $('res-cac-general');
     if (elCacAcc2) { elCacAcc2.innerText = fmtUSD.format(cacAcciones); elCacAcc2.className = `text-2xl font-black mt-0.5 ${cAcc2.text}`; }
-    if (elCacGen2) { elCacGen2.innerText = fmtUSD.format(cacGeneral); elCacGen2.className = `text-2xl font-black mt-0.5 ${cGen2.text}`; }
+    if (elCacGen2) { elCacGen2.innerText = fmtUSD.format(cacGeneral); elCacGen2.className = 'text-2xl font-black mt-0.5'; }
     const elCacAccD2 = $('res-cac-acc-detail');
     const elCacGenD2 = $('res-cac-gen-detail');
     if (elCacAccD2) elCacAccD2.className = `text-[7px] mt-0.5 font-semibold ${cAcc2.detail}`;
-    if (elCacGenD2) elCacGenD2.className = `text-[7px] mt-0.5 font-semibold ${cGen2.detail}`;
+    if (elCacGenD2) elCacGenD2.className = 'text-[7px] mt-0.5 font-semibold';
 
     const cacAccLabel = $('res-cac-acc-label');
     const cacGenLabel = $('res-cac-gen-label');
@@ -1311,7 +1250,7 @@ function updateResultStats() {
             </div>
             <div class="w-full border-t border-slate-100 mt-1.5 pt-1.5 flex flex-col items-center gap-0.5">
                 <span class="text-[8px] font-bold px-2 py-0.5 rounded-md ${cacColor(cacAccQ).badge}">CAC Acc: ${fmtUSD.format(cacAccQ)}</span>
-                <span class="text-[8px] font-bold px-2 py-0.5 rounded-md ${cacColor(cacGenQ).badge}">CAC Gen: ${fmtUSD.format(cacGenQ)}</span>
+                <span class="text-[8px] font-bold px-2 py-0.5 rounded-md" style="${CAC_GEN_BADGE_STYLE[cacGeneralTier(cacGenQ)]}">CAC Gen: ${fmtUSD.format(cacGenQ)}</span>
             </div>
         </div>`;
     }).join(''));
