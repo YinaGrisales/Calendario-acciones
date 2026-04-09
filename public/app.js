@@ -58,150 +58,21 @@ const STORAGE_KEY_CONFIG   = 'hub2026_config';
 const STORAGE_KEY_CONTENIDOS = 'hub2026_contenidos';
 const STORAGE_KEY_Q_TRIALS = 'hub2026_q_trials';
 
-// ── GitHub Gist Cloud Sync ───────────────────────────────────
-const GH_STORAGE_KEY = 'hub2026_gh_config';
-const GIST_FILENAME = 'hub_state.json';
-let ghToken = '';
-let ghGistId = '';
+// ── Firebase Realtime Database Cloud Sync ─────────────────────
+firebase.initializeApp({
+    apiKey: "AIzaSyAMvRebnnsqMM1UBfKEtDmCY0dVmgYysWY",
+    authDomain: "hub-afiliados-2026-co.firebaseapp.com",
+    databaseURL: "https://hub-afiliados-2026-co-default-rtdb.firebaseio.com",
+    projectId: "hub-afiliados-2026-co",
+    storageBucket: "hub-afiliados-2026-co.firebasestorage.app",
+    messagingSenderId: "980466856659",
+    appId: "1:980466856659:web:a709889079d354ea189a26"
+});
+const firebaseDb = firebase.database();
+const stateRef = firebaseDb.ref('hub_state');
 let cloudSaveTimeout = null;
 let suppressCloudSync = false;
-
-function loadGitHubConfig() {
-    try {
-        const cfg = JSON.parse(localStorage.getItem(GH_STORAGE_KEY) || '{}');
-        ghToken = cfg.token || '';
-        ghGistId = cfg.gistId || '';
-    } catch { ghToken = ''; ghGistId = ''; }
-}
-
-function saveGitHubConfig() {
-    localStorage.setItem(GH_STORAGE_KEY, JSON.stringify({ token: ghToken, gistId: ghGistId }));
-}
-
-function isGitHubConfigured() { return !!(ghToken && ghGistId); }
-
-function ghHeaders() {
-    return {
-        'Authorization': 'token ' + ghToken,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-    };
-}
-
-async function createGist() {
-    if (!ghToken) return false;
-    try {
-        const res = await fetch('https://api.github.com/gists', {
-            method: 'POST',
-            headers: ghHeaders(),
-            body: JSON.stringify({
-                description: 'Hub Afiliados 2026 - Data',
-                public: false,
-                files: { [GIST_FILENAME]: { content: JSON.stringify(getFullState()) } }
-            })
-        });
-        if (!res.ok) return false;
-        const gist = await res.json();
-        ghGistId = gist.id;
-        saveGitHubConfig();
-        return true;
-    } catch (err) {
-        console.warn('Gist creation failed', err);
-        return false;
-    }
-}
-
-async function connectGitHub() {
-    const tokenInput = $('gh-token-input');
-    const gistInput = $('gh-gist-id-input');
-    if (!tokenInput) return;
-    const token = tokenInput.value.trim();
-    if (!token) { showToast('Ingresa tu GitHub Token', 'warning'); return; }
-
-    ghToken = token;
-    showToast('Validando token…', 'info');
-
-    try {
-        const res = await fetch('https://api.github.com/user', {
-            headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github.v3+json' }
-        });
-        if (!res.ok) { showToast('Token inválido o sin permisos', 'error'); ghToken = ''; return; }
-    } catch { showToast('Error de conexión con GitHub', 'error'); ghToken = ''; return; }
-
-    const gistId = gistInput ? gistInput.value.trim() : '';
-    if (gistId) {
-        ghGistId = gistId;
-        saveGitHubConfig();
-        syncGitHubUI();
-        closeModal('modal-github');
-        showToast('Conectado a GitHub Gist', 'success');
-        manualCloudSync();
-    } else {
-        const ok = await createGist();
-        if (ok) {
-            saveGitHubConfig();
-            syncGitHubUI();
-            closeModal('modal-github');
-            showToast('Gist creado y datos subidos', 'success');
-            updateSyncIndicator('synced');
-        } else {
-            showToast('Error al crear Gist. Verifica que el token tenga scope "gist".', 'error');
-        }
-    }
-}
-
-function toggleTokenVisibility() {
-    const input = $('gh-token-input');
-    if (!input) return;
-    const isHidden = input.type === 'password';
-    input.type = isHidden ? 'text' : 'password';
-    const eyeIcon = $('gh-eye-icon');
-    if (eyeIcon) {
-        eyeIcon.innerHTML = isHidden
-            ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"/>'
-            : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>';
-    }
-}
-
-function copyField(inputId, message) {
-    const input = $(inputId);
-    if (!input || !input.value) { showToast('No hay valor para copiar', 'warning'); return; }
-    navigator.clipboard.writeText(input.value).then(() => {
-        showToast(message, 'success');
-    }).catch(() => {
-        input.select();
-        document.execCommand('copy');
-        showToast(message, 'success');
-    });
-}
-
-function disconnectGitHub() {
-    ghToken = '';
-    ghGistId = '';
-    localStorage.removeItem(GH_STORAGE_KEY);
-    syncGitHubUI();
-    updateSyncIndicator('not-configured');
-    showToast('Desconectado de GitHub', 'info');
-}
-
-function syncGitHubUI() {
-    const statusEl = $('gh-connection-status');
-    const connectBtn = $('gh-connect-btn');
-    const disconnectBtn = $('gh-disconnect-btn');
-    const gistInput = $('gh-gist-id-input');
-    const tokenInput = $('gh-token-input');
-    if (isGitHubConfigured()) {
-        if (statusEl) statusEl.innerHTML = '<span class="text-emerald-600 font-bold text-[9px]">Conectado</span> <span class="text-[8px] text-slate-400">Gist: ' + ghGistId.substring(0, 12) + '…</span>';
-        if (connectBtn) connectBtn.classList.add('hidden');
-        if (disconnectBtn) disconnectBtn.classList.remove('hidden');
-        if (gistInput) gistInput.value = ghGistId;
-        if (tokenInput) tokenInput.value = ghToken;
-    } else {
-        if (statusEl) statusEl.innerHTML = '<span class="text-slate-400 font-bold text-[9px]">No conectado</span>';
-        if (connectBtn) connectBtn.classList.remove('hidden');
-        if (disconnectBtn) disconnectBtn.classList.add('hidden');
-    }
-}
+let firebaseListenerActive = false;
 
 function getFullState() {
     return {
@@ -254,47 +125,41 @@ function applyFullState(data) {
     }
 }
 
-async function loadFromCloud() {
-    if (!isGitHubConfigured()) return false;
-    try {
-        const res = await fetch('https://api.github.com/gists/' + ghGistId, { headers: ghHeaders() });
-        if (!res.ok) return false;
-        const gist = await res.json();
-        const file = gist.files[GIST_FILENAME];
-        if (!file || !file.content) return false;
-        const data = JSON.parse(file.content);
-        if (data && (data.results || data.planning)) {
-            applyFullState(data);
-            suppressCloudSync = true;
-            savePlanningToStorage();
-            saveResultsToStorage();
-            saveContenidosToStorage();
-            saveConfigToStorage();
-            saveQProjectionsToStorage();
-            saveQActualToStorage();
-            saveQTrialsToStorage();
-            suppressCloudSync = false;
-            return true;
-        }
-        return false;
-    } catch (err) {
-        console.warn('Cloud load failed, using localStorage', err);
-        return false;
-    }
+function startFirebaseListener() {
+    if (firebaseListenerActive) return;
+    firebaseListenerActive = true;
+    stateRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data || suppressCloudSync) return;
+        suppressCloudSync = true;
+        applyFullState(data);
+        savePlanningToStorage();
+        saveResultsToStorage();
+        saveContenidosToStorage();
+        saveConfigToStorage();
+        saveQProjectionsToStorage();
+        saveQActualToStorage();
+        saveQTrialsToStorage();
+        syncConfigInputs();
+        updateFilters();
+        renderTabs();
+        refreshViews();
+        suppressCloudSync = false;
+        updateSyncIndicator('synced');
+    }, (err) => {
+        console.warn('Firebase listener error', err);
+        updateSyncIndicator('error');
+    });
 }
 
 function saveToCloud() {
-    if (!isGitHubConfigured()) return;
     updateSyncIndicator('syncing');
-    fetch('https://api.github.com/gists/' + ghGistId, {
-        method: 'PATCH',
-        headers: ghHeaders(),
-        body: JSON.stringify({
-            files: { [GIST_FILENAME]: { content: JSON.stringify(getFullState()) } }
-        })
-    }).then(r => {
-        updateSyncIndicator(r.ok ? 'synced' : 'error');
+    suppressCloudSync = true;
+    stateRef.set(getFullState()).then(() => {
+        suppressCloudSync = false;
+        updateSyncIndicator('synced');
     }).catch(err => {
+        suppressCloudSync = false;
         console.warn('Cloud save failed', err);
         updateSyncIndicator('error');
     });
@@ -316,44 +181,50 @@ function updateSyncIndicator(state) {
             el.className = 'text-[8px] font-bold text-slate-400 uppercase';
             break;
         case 'syncing':
-            el.innerHTML = '<span class="animate-pulse">&#8635; Subiendo…</span>';
+            el.innerHTML = '<span class="animate-pulse">&#8635; Sincronizando…</span>';
             el.className = 'text-[8px] font-bold text-indigo-400 uppercase';
             break;
         case 'synced':
-            el.innerHTML = '&#9745; Sincronizado';
+            el.innerHTML = '&#9745; En tiempo real';
             el.className = 'text-[8px] font-bold text-emerald-400 uppercase';
             break;
         case 'error':
             el.innerHTML = '&#9888; Error al sincronizar';
             el.className = 'text-[8px] font-bold text-red-400 uppercase';
             break;
-        case 'not-configured':
-            el.innerHTML = '&#9888; GitHub no configurado';
-            el.className = 'text-[8px] font-bold text-amber-400 uppercase cursor-pointer';
-            el.onclick = () => openModal('modal-github');
-            break;
     }
 }
 
 async function manualCloudSync() {
-    if (!isGitHubConfigured()) {
-        openModal('modal-github');
-        showToast('Configura GitHub primero', 'warning');
-        return;
-    }
     updateSyncIndicator('syncing');
-    showToast('Recargando datos desde GitHub…', 'info');
-    const ok = await loadFromCloud();
-    if (ok) {
-        syncConfigInputs();
-        updateFilters();
-        renderTabs();
-        refreshViews();
-        updateSyncIndicator('synced');
-        showToast('Datos actualizados desde GitHub', 'success');
-    } else {
+    showToast('Recargando datos…', 'info');
+    try {
+        const snapshot = await stateRef.once('value');
+        const data = snapshot.val();
+        if (data && (data.results || data.planning)) {
+            applyFullState(data);
+            suppressCloudSync = true;
+            savePlanningToStorage();
+            saveResultsToStorage();
+            saveContenidosToStorage();
+            saveConfigToStorage();
+            saveQProjectionsToStorage();
+            saveQActualToStorage();
+            saveQTrialsToStorage();
+            suppressCloudSync = false;
+            syncConfigInputs();
+            updateFilters();
+            renderTabs();
+            refreshViews();
+            updateSyncIndicator('synced');
+            showToast('Datos actualizados', 'success');
+        } else {
+            updateSyncIndicator('synced');
+        }
+    } catch (err) {
+        console.warn('Manual sync failed', err);
         updateSyncIndicator('error');
-        showToast('No se pudieron cargar datos de GitHub', 'error');
+        showToast('Error al cargar datos', 'error');
     }
 }
 
@@ -1897,7 +1768,6 @@ function openModal(id) {
     if (!el) return;
     el.classList.remove('hidden');
     el.classList.add('flex');
-    if (id === 'modal-github') syncGitHubUI();
 }
 
 function closeModal(id) {
@@ -2040,13 +1910,7 @@ function clearAllData() {
     localStorage.removeItem(STORAGE_KEY_CONFIG);
     localStorage.removeItem(STORAGE_KEY_Q_ACTUAL);
     localStorage.removeItem(STORAGE_KEY_Q_TRIALS);
-    if (isGitHubConfigured()) {
-        fetch('https://api.github.com/gists/' + ghGistId, {
-            method: 'PATCH',
-            headers: ghHeaders(),
-            body: JSON.stringify({ files: { [GIST_FILENAME]: { content: '{}' } } })
-        }).catch(() => {});
-    }
+    stateRef.set({}).catch(() => {});
     updateFilters();
     renderTabs();
     refreshViews();
@@ -2201,7 +2065,6 @@ function hasLocalData() {
 
 function init() {
     showLoading(true);
-    loadGitHubConfig();
     try {
         loadFromStorage();
         syncConfigInputs();
@@ -2213,34 +2076,41 @@ function init() {
     }
     showLoading(false);
 
-    if (!isGitHubConfigured()) {
-        updateSyncIndicator('not-configured');
-        return;
-    }
-
     updateSyncIndicator('syncing');
-    loadFromCloud().then(cloudLoaded => {
+    stateRef.once('value').then(snapshot => {
         try {
-            if (cloudLoaded) {
+            const data = snapshot.val();
+            if (data && (data.results || data.planning)) {
+                applyFullState(data);
+                suppressCloudSync = true;
+                savePlanningToStorage();
+                saveResultsToStorage();
+                saveContenidosToStorage();
+                saveConfigToStorage();
+                saveQProjectionsToStorage();
+                saveQActualToStorage();
+                saveQTrialsToStorage();
+                suppressCloudSync = false;
                 syncConfigInputs();
                 updateFilters();
                 renderTabs();
                 refreshViews();
                 updateSyncIndicator('synced');
-                showToast('Datos actualizados desde GitHub', 'success');
             } else if (hasLocalData()) {
                 saveToCloud();
-                showToast('Datos locales subidos a GitHub', 'success');
             } else {
                 updateSyncIndicator('synced');
             }
+            startFirebaseListener();
         } catch (err) {
             console.error('Error al aplicar datos de nube:', err);
             updateSyncIndicator('error');
+            startFirebaseListener();
         }
     }).catch(err => {
         console.error('Error de conexión:', err);
         updateSyncIndicator('error');
+        startFirebaseListener();
     });
 }
 
