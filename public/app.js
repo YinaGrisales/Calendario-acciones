@@ -13,6 +13,15 @@ let TRM = 3700;
 let COMISION_BASE = 24900;
 let COMISION_PCT = 55;
 let COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
+let COMISION_BASE_2 = 24900;
+let COMISION_PCT_2 = 55;
+let COMISION_POR_NP_2 = COMISION_BASE_2 * (1 + COMISION_PCT_2 / 100);
+const COMISION_CUTOFF = '2026-04-13';
+
+function getComisionPorNp(row) {
+    if (row.date && row.date >= COMISION_CUTOFF) return COMISION_POR_NP_2;
+    return COMISION_POR_NP;
+}
 
 // ── State ───────────────────────────────────────────────────
 const today = new Date();
@@ -204,7 +213,7 @@ function getFullState() {
         quarterProjections,
         quarterActualNps,
         quarterActualTrials,
-        config: { trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT }
+        config: { trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT, comisionBase2: COMISION_BASE_2, comisionPct2: COMISION_PCT_2 }
     };
 }
 
@@ -239,6 +248,9 @@ function applyFullState(data) {
         if (data.config.comisionPct !== undefined) COMISION_PCT = data.config.comisionPct;
         if (data.config.comisionBase) COMISION_BASE = data.config.comisionBase;
         COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
+        if (data.config.comisionPct2 !== undefined) COMISION_PCT_2 = data.config.comisionPct2;
+        if (data.config.comisionBase2) COMISION_BASE_2 = data.config.comisionBase2;
+        COMISION_POR_NP_2 = COMISION_BASE_2 * (1 + COMISION_PCT_2 / 100);
     }
 }
 
@@ -394,6 +406,9 @@ function loadFromStorage() {
             if (cfg.comisionBase) COMISION_BASE = cfg.comisionBase;
             else if (cfg.comisionPorNp) COMISION_BASE = Math.round(cfg.comisionPorNp / 1.75);
             COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
+            if (cfg.comisionPct2 !== undefined) COMISION_PCT_2 = cfg.comisionPct2;
+            if (cfg.comisionBase2) COMISION_BASE_2 = cfg.comisionBase2;
+            COMISION_POR_NP_2 = COMISION_BASE_2 * (1 + COMISION_PCT_2 / 100);
         }
     } catch (err) {
         showToast('Error al cargar datos locales', 'error');
@@ -402,7 +417,7 @@ function loadFromStorage() {
 
 function saveConfigToStorage() {
     try {
-        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify({ trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT }));
+        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify({ trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT, comisionBase2: COMISION_BASE_2, comisionPct2: COMISION_PCT_2 }));
     } catch (err) {
         showToast('Error al guardar configuración', 'error');
     }
@@ -1059,6 +1074,29 @@ function updateComisionPct(el) {
     updateResultStats();
 }
 
+function updateComisionBase2(el) {
+    const val = parseInt(String(el.value).replace(/\D/g, '')) || 0;
+    COMISION_BASE_2 = val;
+    COMISION_POR_NP_2 = COMISION_BASE_2 * (1 + COMISION_PCT_2 / 100);
+    el.value = fmtNum.format(val);
+    const resultEl = $('comision-result-2');
+    if (resultEl) resultEl.innerText = fmtCOP.format(COMISION_POR_NP_2);
+    saveConfigToStorage();
+    renderResultsTable();
+    updateResultStats();
+}
+
+function updateComisionPct2(el) {
+    const val = parseFloat(el.value) || 0;
+    COMISION_PCT_2 = val;
+    COMISION_POR_NP_2 = COMISION_BASE_2 * (1 + COMISION_PCT_2 / 100);
+    const resultEl = $('comision-result-2');
+    if (resultEl) resultEl.innerText = fmtCOP.format(COMISION_POR_NP_2);
+    saveConfigToStorage();
+    renderResultsTable();
+    updateResultStats();
+}
+
 function setConfirmedFilter(mode) {
     confirmedFilter = mode;
     ['all','check','nocheck'].forEach(m => {
@@ -1154,7 +1192,7 @@ function updateTopStats() {
 
     const confirmedFil = periodFil.filter(r => r.confirmed);
     const cacInv = confirmedFil.reduce((acc, r) => {
-        const rowComis = r.hasCommission !== false ? COMISION_POR_NP * (r.nps || 0) : 0;
+        const rowComis = r.hasCommission !== false ? getComisionPorNp(r) * (r.nps || 0) : 0;
         return acc + (r.fixed || 0) + (r.variable || 0) + rowComis + (r.pauta || 0);
     }, 0);
     const cacNps = confirmedFil.reduce((acc, r) => acc + (r.nps || 0), 0);
@@ -1201,7 +1239,7 @@ function updateResultStats() {
         return acc + (r.confirmed ? 0 : (r.projectedNps || 0));
     }, 0);
     const pInv = periodFil.reduce((acc, r) => {
-        const rowComis = r.hasCommission !== false ? COMISION_POR_NP * (r.nps || 0) : 0;
+        const rowComis = r.hasCommission !== false ? getComisionPorNp(r) * (r.nps || 0) : 0;
         return acc + (r.fixed || 0) + (r.variable || 0) + rowComis + (r.pauta || 0);
     }, 0);
 
@@ -1269,7 +1307,7 @@ function updateResultStats() {
 
     const confirmedPeriodFil = periodFil.filter(r => r.confirmed);
     const cacInv = confirmedPeriodFil.reduce((acc, r) => {
-        const rowComis = r.hasCommission !== false ? COMISION_POR_NP * (r.nps || 0) : 0;
+        const rowComis = r.hasCommission !== false ? getComisionPorNp(r) * (r.nps || 0) : 0;
         return acc + (r.fixed || 0) + (r.variable || 0) + rowComis + (r.pauta || 0);
     }, 0);
     const cacNpsAcc = confirmedPeriodFil.reduce((acc, r) => acc + (r.nps || 0), 0);
@@ -1332,7 +1370,7 @@ function updateResultStats() {
             qTrials[qId] += (r.trials || 0);
             if (!r.confirmed) qProj[qId] += (r.projectedNps || 0);
             if (r.confirmed) {
-                const rowComis = r.hasCommission !== false ? COMISION_POR_NP * (r.nps || 0) : 0;
+                const rowComis = r.hasCommission !== false ? getComisionPorNp(r) * (r.nps || 0) : 0;
                 qCacInv[qId] += (r.fixed || 0) + (r.variable || 0) + rowComis + (r.pauta || 0);
                 qCacNps[qId] += (r.nps || 0);
             }
@@ -1442,7 +1480,7 @@ function renderDelta(actual, projected) {
 function updateCalculatedCells(id) {
     const row = results.find(r => r.id === id);
     if (!row) return;
-    const comis = row.hasCommission !== false ? COMISION_POR_NP * (row.nps || 0) : 0;
+    const comis = row.hasCommission !== false ? getComisionPorNp(row) * (row.nps || 0) : 0;
     const total = (row.fixed || 0) + (row.variable || 0) + comis + (row.pauta || 0);
     const cac = row.nps > 0 ? Math.round(total / row.nps) : 0;
 
@@ -1495,7 +1533,7 @@ function renderResultsTable() {
     });
 
     body.innerHTML = filteredRows.map(row => {
-        const comis = row.hasCommission !== false ? COMISION_POR_NP * (row.nps || 0) : 0;
+        const comis = row.hasCommission !== false ? getComisionPorNp(row) * (row.nps || 0) : 0;
         const total = (row.fixed || 0) + (row.variable || 0) + comis + (row.pauta || 0);
         const cac = row.nps > 0 ? Math.round(total / row.nps) : 0;
 
@@ -1901,7 +1939,7 @@ function exportJSON() {
         quarterProjections,
         quarterActualNps,
         quarterActualTrials,
-        config: { trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT }
+        config: { trm: TRM, comisionBase: COMISION_BASE, comisionPct: COMISION_PCT, comisionBase2: COMISION_BASE_2, comisionPct2: COMISION_PCT_2 }
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1954,6 +1992,9 @@ function importJSON(evt) {
                 if (data.config.comisionBase) COMISION_BASE = data.config.comisionBase;
                 else if (data.config.comisionPorNp) COMISION_BASE = Math.round(data.config.comisionPorNp / (1 + COMISION_PCT / 100));
                 COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
+                if (data.config.comisionPct2 !== undefined) COMISION_PCT_2 = data.config.comisionPct2;
+                if (data.config.comisionBase2) COMISION_BASE_2 = data.config.comisionBase2;
+                COMISION_POR_NP_2 = COMISION_BASE_2 * (1 + COMISION_PCT_2 / 100);
             }
 
             savePlanningToStorage();
@@ -1989,6 +2030,9 @@ function clearAllData() {
     COMISION_BASE = 24900;
     COMISION_PCT = 55;
     COMISION_POR_NP = COMISION_BASE * (1 + COMISION_PCT / 100);
+    COMISION_BASE_2 = 24900;
+    COMISION_PCT_2 = 55;
+    COMISION_POR_NP_2 = COMISION_BASE_2 * (1 + COMISION_PCT_2 / 100);
     localStorage.removeItem(STORAGE_KEY_PLANNING);
     localStorage.removeItem(STORAGE_KEY_RESULTS);
     localStorage.removeItem(STORAGE_KEY_CONTENIDOS);
@@ -2083,7 +2127,7 @@ function exportCSV() {
 
     const headers = ['Afiliado','Fecha','Tipo','WA_Group','Asistentes','Trials','NPs','Proy_NPs','Delta_NP','Confirmado','Con_Comision','Fijo','Variable','Comisiones','Pauta','TOTAL_INV','CAC_COP','CAC_USD','Meta_4Steps','Pct_4Steps','Notas'];
     const rows = results.map(r => {
-        const comis = r.hasCommission !== false ? COMISION_POR_NP * (r.nps || 0) : 0;
+        const comis = r.hasCommission !== false ? getComisionPorNp(r) * (r.nps || 0) : 0;
         const total = (r.fixed || 0) + (r.variable || 0) + comis + (r.pauta || 0);
         const cacCop = r.nps > 0 ? Math.round(total / r.nps) : 0;
         const cacUsd = r.nps > 0 ? (total / r.nps / TRM).toFixed(2) : '0';
@@ -2143,6 +2187,12 @@ function syncConfigInputs() {
     if (baseEl) baseEl.value = fmtNum.format(COMISION_BASE);
     if (pctEl) pctEl.value = COMISION_PCT;
     if (resultEl) resultEl.innerText = fmtCOP.format(COMISION_POR_NP);
+    const base2El = $('input-comision-base-2');
+    const pct2El = $('input-comision-pct-2');
+    const result2El = $('comision-result-2');
+    if (base2El) base2El.value = fmtNum.format(COMISION_BASE_2);
+    if (pct2El) pct2El.value = COMISION_PCT_2;
+    if (result2El) result2El.innerText = fmtCOP.format(COMISION_POR_NP_2);
 }
 
 function hasLocalData() {
