@@ -28,7 +28,7 @@ const today = new Date();
 let currentMonth = today.getMonth();
 const currentYear = today.getFullYear();
 let currentLeverFilter = 'all';
-let currentAffiliateFilter = 'all';
+let currentAffiliateFilter = []; // empty = todos
 let currentTypeFilters = ['all'];
 let currentResultPeriod = 'all';
 let confirmedFilter = 'all';
@@ -705,30 +705,69 @@ function updateFilters() {
         });
         ls.value = currentLeverFilter;
     }
-    const as = $('filter-affiliate');
-    if (as) {
-        const val = as.value;
-        as.innerHTML = '<option value="all">Todos los afiliados</option>';
-        Object.entries(categories).forEach(([k, c]) => {
-            if (currentLeverFilter !== 'all' && currentLeverFilter !== k) return;
-            const g = document.createElement('optgroup');
-            g.label = c.label;
-            c.members.forEach(m => {
-                const o = document.createElement('option');
-                o.value = m;
-                o.innerText = m;
-                g.appendChild(o);
-            });
-            as.appendChild(g);
-        });
-        as.value = val || 'all';
-    }
+    renderAffiliateDropdown();
     updateTypeFilterUI();
+}
+
+function renderAffiliateDropdown() {
+    const panel = $('affiliate-dropdown-panel');
+    const label = $('affiliate-dropdown-label');
+    if (!panel) return;
+
+    let html = `<div onclick="selectAllAffiliates()" class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors">
+        <div class="w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 ${currentAffiliateFilter.length === 0 ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}">
+            ${currentAffiliateFilter.length === 0 ? '<svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+        </div>
+        <span class="text-[11px] font-bold text-slate-700">Todos los afiliados</span>
+    </div>`;
+
+    Object.entries(categories).forEach(([k, c]) => {
+        if (currentLeverFilter !== 'all' && currentLeverFilter !== k) return;
+        html += `<p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider px-2 pt-2 pb-0.5">${c.label}</p>`;
+        c.members.forEach(m => {
+            const checked = currentAffiliateFilter.includes(m);
+            html += `<div onclick="toggleAffiliateSelection('${m.replace(/'/g, "\\'")}')" class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors">
+                <div class="w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 ${checked ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}">
+                    ${checked ? '<svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+                </div>
+                <span class="text-[11px] font-medium text-slate-700">${escapeHTML(m)}</span>
+            </div>`;
+        });
+    });
+
+    panel.innerHTML = html;
+
+    if (currentAffiliateFilter.length === 0) {
+        label.textContent = 'Todos los afiliados';
+    } else if (currentAffiliateFilter.length === 1) {
+        label.textContent = currentAffiliateFilter[0];
+    } else {
+        label.textContent = `${currentAffiliateFilter.length} afiliados`;
+    }
+}
+
+function toggleAffiliateDropdown() {
+    const panel = $('affiliate-dropdown-panel');
+    if (!panel) return;
+    panel.classList.toggle('hidden');
+}
+
+function toggleAffiliateSelection(name) {
+    const idx = currentAffiliateFilter.indexOf(name);
+    if (idx === -1) currentAffiliateFilter.push(name);
+    else currentAffiliateFilter.splice(idx, 1);
+    renderAffiliateDropdown();
+    refreshViews();
+}
+
+function selectAllAffiliates() {
+    currentAffiliateFilter = [];
+    renderAffiliateDropdown();
+    refreshViews();
 }
 
 function applyFilter() {
     currentLeverFilter = $('filter-lever').value;
-    currentAffiliateFilter = $('filter-affiliate').value;
     updateFilters();
     refreshViews();
 }
@@ -834,7 +873,7 @@ function renderCalendar() {
 
         const dEvs = events.filter(e =>
             ds >= e.date && ds <= (e.endDate || e.date) &&
-            (currentAffiliateFilter === 'all' || e.affiliate === currentAffiliateFilter) &&
+            (currentAffiliateFilter.length === 0 || currentAffiliateFilter.includes(e.affiliate)) &&
             (currentLeverFilter === 'all' || getAffiliateLever(e.affiliate) === currentLeverFilter) &&
             (currentTypeFilters.includes('all') || currentTypeFilters.includes(e.type))
         );
@@ -862,7 +901,7 @@ function renderCalendar() {
 function updateStats() {
     const pre = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
     const gFil = events.filter(e =>
-        (currentAffiliateFilter === 'all' || e.affiliate === currentAffiliateFilter) &&
+        (currentAffiliateFilter.length === 0 || currentAffiliateFilter.includes(e.affiliate)) &&
         (currentLeverFilter === 'all' || getAffiliateLever(e.affiliate) === currentLeverFilter) &&
         (currentTypeFilters.includes('all') || currentTypeFilters.includes(e.type))
     );
@@ -1042,7 +1081,7 @@ function handleQTrialsInput(q, el) {
 
 function getFilteredResults() {
     return results.filter(r =>
-        (currentAffiliateFilter === 'all' || r.name === currentAffiliateFilter) &&
+        (currentAffiliateFilter.length === 0 || currentAffiliateFilter.includes(r.name)) &&
         (currentLeverFilter === 'all' || getAffiliateLever(r.name) === currentLeverFilter) &&
         matchesPeriodFilter(r.date, currentResultPeriod) &&
         (confirmedFilter === 'all' || (confirmedFilter === 'check' && r.confirmed) || (confirmedFilter === 'nocheck' && !r.confirmed))
@@ -1051,7 +1090,7 @@ function getFilteredResults() {
 
 function updateResultStats() {
     const fil = results.filter(r =>
-        (currentAffiliateFilter === 'all' || r.name === currentAffiliateFilter) &&
+        (currentAffiliateFilter.length === 0 || currentAffiliateFilter.includes(r.name)) &&
         (currentLeverFilter === 'all' || getAffiliateLever(r.name) === currentLeverFilter)
     );
     const periodFil = fil.filter(r => matchesPeriodFilter(r.date, currentResultPeriod));
@@ -1349,7 +1388,7 @@ function renderResultsTable() {
     if (!body) return;
 
     const filteredRows = results.filter(row =>
-        (currentAffiliateFilter === 'all' || row.name === currentAffiliateFilter) &&
+        (currentAffiliateFilter.length === 0 || currentAffiliateFilter.includes(row.name)) &&
         (currentLeverFilter === 'all' || getAffiliateLever(row.name) === currentLeverFilter) &&
         matchesPeriodFilter(row.date, currentResultPeriod) &&
         (confirmedFilter === 'all' || (confirmedFilter === 'check' && row.confirmed) || (confirmedFilter === 'nocheck' && !row.confirmed))
@@ -1749,6 +1788,12 @@ document.addEventListener('click', (e) => {
         const el = $(id);
         if (el && e.target === el) closeModal(id);
     });
+    // Close affiliate dropdown when clicking outside
+    const container = $('affiliate-dropdown-container');
+    const panel = $('affiliate-dropdown-panel');
+    if (panel && !panel.classList.contains('hidden') && container && !container.contains(e.target)) {
+        panel.classList.add('hidden');
+    }
 });
 
 // ── Backup / Restore ────────────────────────────────────────

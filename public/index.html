@@ -186,9 +186,15 @@
                         <span class="floating-label">Palanca</span>
                         <select id="filter-lever" onchange="applyFilter()" class="font-semibold text-slate-600 cursor-pointer"></select>
                     </div>
-                    <div class="floating-label-container min-w-[170px]">
+                    <div class="floating-label-container min-w-[170px] relative" id="affiliate-dropdown-container">
                         <span class="floating-label">Afiliado</span>
-                        <select id="filter-affiliate" onchange="applyFilter()" class="font-semibold text-slate-600 cursor-pointer"></select>
+                        <button onclick="toggleAffiliateDropdown()" id="affiliate-dropdown-btn"
+                            class="font-semibold text-slate-600 cursor-pointer w-full text-left bg-white border border-slate-200 rounded-lg px-2.5 py-[0.4rem] text-[0.72rem] flex justify-between items-center gap-1">
+                            <span id="affiliate-dropdown-label" class="truncate">Todos los afiliados</span>
+                            <svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div id="affiliate-dropdown-panel" class="hidden absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[300] min-w-[210px] max-h-72 overflow-y-auto p-2 scrollbar-hide">
+                        </div>
                     </div>
                     <div class="flex items-center gap-1.5 mt-2">
                         <span class="text-[8px] font-bold text-slate-400 uppercase" id="cloud-sync-status"></span>
