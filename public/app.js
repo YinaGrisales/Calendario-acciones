@@ -1743,8 +1743,17 @@ function toggleEndDateField() {
 }
 
 // ── Link Modal ──────────────────────────────────────────────
+let pendingLinkIds = new Set();
+
 function openLinkModal() {
+    pendingLinkIds = new Set();
+    renderLinkList();
+    openModal('modal-link');
+}
+
+function renderLinkList() {
     const list = $('calendar-actions-list');
+    const btn = $('btn-link-selected');
     if (!list) return;
 
     const sorted = [...events]
@@ -1755,45 +1764,69 @@ function openLinkModal() {
 
     list.innerHTML = sorted.map(e => {
         const isLinked = existingKeys.includes(`${e.affiliate}_${e.date}_${e.type.toLowerCase()}`);
+        const isSelected = pendingLinkIds.has(String(e.id));
         const icon = e.type === 'clase' ? '🎓' : '📒';
         const projBadge = e.projectedNps ? `<span class="text-[7px] font-bold px-1.5 py-0.5 rounded-md bg-violet-50 text-violet-600 ml-1">Proy: ${e.projectedNps}</span>` : '';
-        return `<div onclick="${isLinked ? '' : `linkEventToResults('${e.id}')`}"
-                     class="p-3 rounded-xl flex justify-between items-center group transition-all border
-                     ${isLinked
-                         ? 'opacity-40 grayscale cursor-not-allowed bg-slate-50 border-slate-100'
-                         : 'hover:bg-indigo-600 hover:text-white hover:border-indigo-600 cursor-pointer bg-white border-slate-200 hover:shadow-md'}">
-                    <div>
-                        <span class="font-bold text-[10px] uppercase">${escapeHTML(e.affiliate)}</span>${projBadge}
-                        <p class="text-[7px] text-slate-400 group-hover:text-indigo-200 mt-0.5">${e.date}</p>
-                    </div>
-                    <span class="text-[8px] font-bold px-2 py-1 rounded-lg bg-white text-indigo-600 self-center shadow-sm">${icon} ${e.type}</span>
-                </div>`;
+
+        if (isLinked) {
+            return `<div class="p-3 rounded-xl flex justify-between items-center border opacity-40 grayscale cursor-not-allowed bg-slate-50 border-slate-100">
+                <div>
+                    <span class="font-bold text-[10px] uppercase">${escapeHTML(e.affiliate)}</span>${projBadge}
+                    <p class="text-[7px] text-slate-400 mt-0.5">${e.date}</p>
+                </div>
+                <span class="text-[8px] font-bold px-2 py-1 rounded-lg bg-white text-indigo-600 shadow-sm">${icon} ${e.type}</span>
+            </div>`;
+        }
+
+        return `<div onclick="toggleLinkSelection('${e.id}')" class="p-3 rounded-xl flex items-center gap-3 border cursor-pointer transition-all
+                ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-200 hover:bg-indigo-50 hover:border-indigo-200'}">
+            <div class="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-white border-white' : 'border-slate-300'}">
+                ${isSelected ? '<svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+            </div>
+            <div class="flex-1">
+                <span class="font-bold text-[10px] uppercase">${escapeHTML(e.affiliate)}</span>${isSelected ? '' : projBadge}
+                <p class="text-[7px] mt-0.5 ${isSelected ? 'text-indigo-200' : 'text-slate-400'}">${e.date}</p>
+            </div>
+            <span class="text-[8px] font-bold px-2 py-1 rounded-lg ${isSelected ? 'bg-white text-indigo-600' : 'bg-slate-50 text-indigo-600'} shadow-sm">${icon} ${e.type}</span>
+        </div>`;
     }).join('') || '<p class="text-center py-8 text-slate-300 font-medium text-[9px] uppercase tracking-widest italic">Sin acciones vinculables</p>';
 
-    openModal('modal-link');
+    if (btn) btn.classList.toggle('hidden', pendingLinkIds.size === 0);
 }
 
-function linkEventToResults(id) {
-    const e = events.find(ev => String(ev.id) === String(id));
-    if (!e) return;
-    results.unshift({
-        id: Date.now(),
-        eventId: e.id,
-        name: e.affiliate,
-        date: e.date,
-        type: e.type.charAt(0).toUpperCase() + e.type.slice(1),
-        wa_group: 0, attendees: 0, trials: 0, nps: 0,
-        fixed: 0, variable: 0, pauta: 0,
-        projectedNps: e.projectedNps || 0,
-        confirmed: false,
-        hasCommission: true,
-        notes: ''
+function toggleLinkSelection(id) {
+    const sid = String(id);
+    if (pendingLinkIds.has(sid)) pendingLinkIds.delete(sid);
+    else pendingLinkIds.add(sid);
+    renderLinkList();
+}
+
+function linkSelectedEvents() {
+    if (pendingLinkIds.size === 0) return;
+    let ts = Date.now();
+    pendingLinkIds.forEach(id => {
+        const e = events.find(ev => String(ev.id) === id);
+        if (!e) return;
+        results.unshift({
+            id: ts++,
+            eventId: e.id,
+            name: e.affiliate,
+            date: e.date,
+            type: e.type.charAt(0).toUpperCase() + e.type.slice(1),
+            wa_group: 0, attendees: 0, trials: 0, nps: 0,
+            fixed: 0, variable: 0, pauta: 0,
+            projectedNps: e.projectedNps || 0,
+            confirmed: false,
+            hasCommission: true,
+            notes: ''
+        });
     });
     renderResultsTable();
     updateResultStats();
     closeModal('modal-link');
     debouncedSaveResults();
-    showToast(`${e.affiliate} vinculado a resultados`, 'success');
+    showToast(`${pendingLinkIds.size} acción(es) vinculada(s)`, 'success');
+    pendingLinkIds = new Set();
 }
 
 // ── Settings ────────────────────────────────────────────────
