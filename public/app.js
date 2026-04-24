@@ -27,7 +27,7 @@ function getComisionPorNp(row) {
 const today = new Date();
 let currentMonth = today.getMonth();
 const currentYear = today.getFullYear();
-let currentLeverFilter = 'all';
+let currentLeverFilter = []; // empty = todas
 let currentAffiliateFilter = []; // empty = todos
 let currentTypeFilters = ['all'];
 let currentResultPeriod = 'all';
@@ -697,16 +697,70 @@ function switchView(view) {
 
 // ── Filters ─────────────────────────────────────────────────
 function updateFilters() {
-    const ls = $('filter-lever');
-    if (ls) {
-        ls.innerHTML = '<option value="all">Todas las palancas</option>';
-        Object.entries(categories).forEach(([k, c]) => {
-            ls.innerHTML += `<option value="${k}">${c.label}</option>`;
-        });
-        ls.value = currentLeverFilter;
-    }
+    renderLeverDropdown();
     renderAffiliateDropdown();
     updateTypeFilterUI();
+}
+
+function renderLeverDropdown() {
+    const panel = $('lever-dropdown-panel');
+    const label = $('lever-dropdown-label');
+    if (!panel) return;
+
+    const calLeverColors = { comunidad: '#6366f1', tradicional: '#f59e0b', alianza: '#10b981', dropshipping: '#f43f5e' };
+    let html = `<div onclick="selectAllLevers()" class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors">
+        <div class="w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 ${currentLeverFilter.length === 0 ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}">
+            ${currentLeverFilter.length === 0 ? '<svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+        </div>
+        <span class="text-[11px] font-bold text-slate-700">Todas las palancas</span>
+    </div>`;
+
+    Object.entries(categories).forEach(([k, c]) => {
+        const checked = currentLeverFilter.includes(k);
+        const clr = c.color || calLeverColors[k] || '#6366f1';
+        html += `<div onclick="toggleLeverSelection('${k}')" class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors">
+            <div class="w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 ${checked ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}">
+                ${checked ? '<svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+            </div>
+            <div class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background:${clr}"></div>
+            <span class="text-[11px] font-medium text-slate-700">${escapeHTML(c.label)}</span>
+        </div>`;
+    });
+
+    panel.innerHTML = html;
+
+    if (currentLeverFilter.length === 0) {
+        label.textContent = 'Todas las palancas';
+    } else if (currentLeverFilter.length === 1) {
+        label.textContent = categories[currentLeverFilter[0]]?.label || currentLeverFilter[0];
+    } else {
+        label.textContent = `${currentLeverFilter.length} palancas`;
+    }
+}
+
+function toggleLeverDropdown() {
+    const panel = $('lever-dropdown-panel');
+    if (!panel) return;
+    panel.classList.toggle('hidden');
+}
+
+function toggleLeverSelection(k) {
+    const idx = currentLeverFilter.indexOf(k);
+    if (idx === -1) currentLeverFilter.push(k);
+    else currentLeverFilter.splice(idx, 1);
+    // Reset affiliate filter when lever changes
+    currentAffiliateFilter = [];
+    renderLeverDropdown();
+    renderAffiliateDropdown();
+    refreshViews();
+}
+
+function selectAllLevers() {
+    currentLeverFilter = [];
+    currentAffiliateFilter = [];
+    renderLeverDropdown();
+    renderAffiliateDropdown();
+    refreshViews();
 }
 
 function renderAffiliateDropdown() {
@@ -722,7 +776,7 @@ function renderAffiliateDropdown() {
     </div>`;
 
     Object.entries(categories).forEach(([k, c]) => {
-        if (currentLeverFilter !== 'all' && currentLeverFilter !== k) return;
+        if (currentLeverFilter.length > 0 && !currentLeverFilter.includes(k)) return;
         html += `<p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider px-2 pt-2 pb-0.5">${c.label}</p>`;
         c.members.forEach(m => {
             const checked = currentAffiliateFilter.includes(m);
@@ -767,16 +821,12 @@ function selectAllAffiliates() {
 }
 
 function applyFilter() {
-    currentLeverFilter = $('filter-lever').value;
     updateFilters();
     refreshViews();
 }
 
 function toggleLeverFilter(k) {
-    currentLeverFilter = currentLeverFilter === k ? 'all' : k;
-    const ls = $('filter-lever');
-    if (ls) ls.value = currentLeverFilter;
-    refreshViews();
+    toggleLeverSelection(k);
 }
 
 function toggleTypeFilter(t) {
@@ -874,7 +924,7 @@ function renderCalendar() {
         const dEvs = events.filter(e =>
             ds >= e.date && ds <= (e.endDate || e.date) &&
             (currentAffiliateFilter.length === 0 || currentAffiliateFilter.includes(e.affiliate)) &&
-            (currentLeverFilter === 'all' || getAffiliateLever(e.affiliate) === currentLeverFilter) &&
+            (currentLeverFilter.length === 0 || currentLeverFilter.includes(getAffiliateLever(e.affiliate))) &&
             (currentTypeFilters.includes('all') || currentTypeFilters.includes(e.type))
         );
 
@@ -902,7 +952,7 @@ function updateStats() {
     const pre = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
     const gFil = events.filter(e =>
         (currentAffiliateFilter.length === 0 || currentAffiliateFilter.includes(e.affiliate)) &&
-        (currentLeverFilter === 'all' || getAffiliateLever(e.affiliate) === currentLeverFilter) &&
+        (currentLeverFilter.length === 0 || currentLeverFilter.includes(getAffiliateLever(e.affiliate))) &&
         (currentTypeFilters.includes('all') || currentTypeFilters.includes(e.type))
     );
     const mEvs = gFil.filter(e =>
@@ -945,7 +995,7 @@ function updateStats() {
 
     const calLeverColors = { comunidad: '#6366f1', tradicional: '#f59e0b', alianza: '#10b981', dropshipping: '#f43f5e' };
     safeHTML('stats-levers', Object.entries(categories).map(([k, c]) => {
-        const dim = currentLeverFilter !== 'all' && currentLeverFilter !== k ? 'opacity-20 grayscale' : '';
+        const dim = currentLeverFilter.length > 0 && !currentLeverFilter.includes(k) ? 'opacity-20 grayscale' : '';
         const clr = c.color || calLeverColors[k] || '#6366f1';
         return `<div class="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-50 ${dim}">
             <div class="w-3 h-3 rounded-full flex-shrink-0" style="background:${clr}"></div>
@@ -1082,7 +1132,7 @@ function handleQTrialsInput(q, el) {
 function getFilteredResults() {
     return results.filter(r =>
         (currentAffiliateFilter.length === 0 || currentAffiliateFilter.includes(r.name)) &&
-        (currentLeverFilter === 'all' || getAffiliateLever(r.name) === currentLeverFilter) &&
+        (currentLeverFilter.length === 0 || currentLeverFilter.includes(getAffiliateLever(r.name))) &&
         matchesPeriodFilter(r.date, currentResultPeriod) &&
         (confirmedFilter === 'all' || (confirmedFilter === 'check' && r.confirmed) || (confirmedFilter === 'nocheck' && !r.confirmed))
     );
@@ -1091,7 +1141,7 @@ function getFilteredResults() {
 function updateResultStats() {
     const fil = results.filter(r =>
         (currentAffiliateFilter.length === 0 || currentAffiliateFilter.includes(r.name)) &&
-        (currentLeverFilter === 'all' || getAffiliateLever(r.name) === currentLeverFilter)
+        (currentLeverFilter.length === 0 || currentLeverFilter.includes(getAffiliateLever(r.name)))
     );
     const periodFil = fil.filter(r => matchesPeriodFilter(r.date, currentResultPeriod));
 
@@ -1304,8 +1354,8 @@ function updateResultStats() {
 
     const leverColors = { comunidad: '#6366f1', tradicional: '#f59e0b', alianza: '#10b981', dropshipping: '#f43f5e' };
     safeHTML('res-stats-levers', Object.entries(categories).map(([k, c]) => {
-        const dim = currentLeverFilter !== 'all' && currentLeverFilter !== k ? 'opacity-30 grayscale' : '';
-        const active = currentLeverFilter === k ? 'ring-2 ring-indigo-400' : '';
+        const dim = currentLeverFilter.length > 0 && !currentLeverFilter.includes(k) ? 'opacity-30 grayscale' : '';
+        const active = currentLeverFilter.includes(k) ? 'ring-2 ring-indigo-400' : '';
         const count = periodFil.filter(r => getAffiliateLever(r.name) === k).length;
         const affiliateCount = lAffiliates[k].size;
         const clr = c.color || leverColors[k] || '#6366f1';
@@ -1389,7 +1439,7 @@ function renderResultsTable() {
 
     const filteredRows = results.filter(row =>
         (currentAffiliateFilter.length === 0 || currentAffiliateFilter.includes(row.name)) &&
-        (currentLeverFilter === 'all' || getAffiliateLever(row.name) === currentLeverFilter) &&
+        (currentLeverFilter.length === 0 || currentLeverFilter.includes(getAffiliateLever(row.name))) &&
         matchesPeriodFilter(row.date, currentResultPeriod) &&
         (confirmedFilter === 'all' || (confirmedFilter === 'check' && row.confirmed) || (confirmedFilter === 'nocheck' && !row.confirmed))
     ).sort((a, b) => {
@@ -1788,6 +1838,12 @@ document.addEventListener('click', (e) => {
         const el = $(id);
         if (el && e.target === el) closeModal(id);
     });
+    // Close lever dropdown when clicking outside
+    const lContainer = $('lever-dropdown-container');
+    const lPanel = $('lever-dropdown-panel');
+    if (lPanel && !lPanel.classList.contains('hidden') && lContainer && !lContainer.contains(e.target)) {
+        lPanel.classList.add('hidden');
+    }
     // Close affiliate dropdown when clicking outside
     const container = $('affiliate-dropdown-container');
     const panel = $('affiliate-dropdown-panel');

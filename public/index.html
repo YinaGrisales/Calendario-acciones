@@ -182,9 +182,15 @@
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2 justify-start lg:justify-end flex-1 w-full">
-                    <div class="floating-label-container min-w-[130px]">
+                    <div class="floating-label-container min-w-[130px] relative" id="lever-dropdown-container">
                         <span class="floating-label">Palanca</span>
-                        <select id="filter-lever" onchange="applyFilter()" class="font-semibold text-slate-600 cursor-pointer"></select>
+                        <button onclick="toggleLeverDropdown()" id="lever-dropdown-btn"
+                            class="font-semibold text-slate-600 cursor-pointer w-full text-left bg-white border border-slate-200 rounded-lg px-2.5 py-[0.4rem] text-[0.72rem] flex justify-between items-center gap-1">
+                            <span id="lever-dropdown-label" class="truncate">Todas las palancas</span>
+                            <svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div id="lever-dropdown-panel" class="hidden absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[300] min-w-[160px] p-2 scrollbar-hide">
+                        </div>
                     </div>
                     <div class="floating-label-container min-w-[170px] relative" id="affiliate-dropdown-container">
                         <span class="floating-label">Afiliado</span>
