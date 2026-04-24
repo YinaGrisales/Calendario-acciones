@@ -735,6 +735,8 @@ function renderLeverDropdown() {
 
     if (currentLeverFilter.length === 0) {
         label.textContent = 'Todas las palancas';
+    } else if (currentLeverFilter.includes('__none__')) {
+        label.textContent = 'Seleccionar palanca';
     } else if (currentLeverFilter.length === 1) {
         label.textContent = categories[currentLeverFilter[0]]?.label || currentLeverFilter[0];
     } else {
@@ -751,10 +753,13 @@ function toggleLeverDropdown() {
 function toggleLeverSelection(k) {
     if (currentLeverFilter.length === 0) {
         currentLeverFilter = Object.keys(categories).filter(key => key !== k);
+    } else if (currentLeverFilter.includes('__none__')) {
+        currentLeverFilter = [k];
     } else {
         const idx = currentLeverFilter.indexOf(k);
         if (idx === -1) currentLeverFilter.push(k);
         else currentLeverFilter.splice(idx, 1);
+        if (currentLeverFilter.length === 0) currentLeverFilter = ['__none__'];
     }
     if (currentLeverFilter.length === Object.keys(categories).length) currentLeverFilter = [];
     currentAffiliateFilter = [];
@@ -763,7 +768,11 @@ function toggleLeverSelection(k) {
 }
 
 function selectAllLevers() {
-    currentLeverFilter = [];
+    if (currentLeverFilter.length === 0) {
+        currentLeverFilter = ['__none__'];
+    } else {
+        currentLeverFilter = [];
+    }
     currentAffiliateFilter = [];
     renderLeverDropdown();
     renderAffiliateDropdown();
@@ -809,6 +818,8 @@ function renderAffiliateDropdown() {
 
     if (currentAffiliateFilter.length === 0) {
         label.textContent = 'Todos los afiliados';
+    } else if (currentAffiliateFilter.includes('__none__')) {
+        label.textContent = 'Seleccionar afiliado';
     } else if (currentAffiliateFilter.length === 1) {
         label.textContent = currentAffiliateFilter[0];
     } else {
@@ -823,29 +834,31 @@ function toggleAffiliateDropdown() {
 }
 
 function toggleAffiliateSelection(name) {
-    if (currentAffiliateFilter.length === 0) {
-        const allMembers = [];
-        Object.entries(categories).forEach(([k, c]) => {
-            if (currentLeverFilter.length > 0 && !currentLeverFilter.includes(k)) return;
-            c.members.forEach(m => allMembers.push(m));
-        });
-        currentAffiliateFilter = allMembers.filter(m => m !== name);
-    } else {
-        const idx = currentAffiliateFilter.indexOf(name);
-        if (idx === -1) currentAffiliateFilter.push(name);
-        else currentAffiliateFilter.splice(idx, 1);
-    }
     const allMembers = [];
     Object.entries(categories).forEach(([k, c]) => {
         if (currentLeverFilter.length > 0 && !currentLeverFilter.includes(k)) return;
         c.members.forEach(m => allMembers.push(m));
     });
+    if (currentAffiliateFilter.length === 0) {
+        currentAffiliateFilter = allMembers.filter(m => m !== name);
+    } else if (currentAffiliateFilter.includes('__none__')) {
+        currentAffiliateFilter = [name];
+    } else {
+        const idx = currentAffiliateFilter.indexOf(name);
+        if (idx === -1) currentAffiliateFilter.push(name);
+        else currentAffiliateFilter.splice(idx, 1);
+        if (currentAffiliateFilter.length === 0) currentAffiliateFilter = ['__none__'];
+    }
     if (currentAffiliateFilter.length === allMembers.length) currentAffiliateFilter = [];
     renderAffiliateDropdown();
 }
 
 function selectAllAffiliates() {
-    currentAffiliateFilter = [];
+    if (currentAffiliateFilter.length === 0) {
+        currentAffiliateFilter = ['__none__'];
+    } else {
+        currentAffiliateFilter = [];
+    }
     renderAffiliateDropdown();
 }
 
