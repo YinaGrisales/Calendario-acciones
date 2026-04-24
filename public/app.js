@@ -1480,13 +1480,13 @@ function renderResultsTable() {
                     <span class="text-[6.5px] px-1.5 py-0.5 rounded-md bg-slate-50 text-slate-300 font-bold italic">${escapeHTML(row.type || 'Clase')}</span>
                 </div>
             </td>
-            <td><input type="text" value="${format(row.wa_group)}" oninput="handleNumberInput(this, ${row.id}, 'wa_group')" class="w-10 text-center"></td>
-            <td><input type="text" value="${format(row.attendees)}" oninput="handleNumberInput(this, ${row.id}, 'attendees')" class="w-10 text-center"></td>
+            <td><div class="w-16"><input type="text" value="${format(row.wa_group)}" oninput="handleNumberInput(this, ${row.id}, 'wa_group')" class="text-center"></div></td>
+            <td><div class="w-16"><input type="text" value="${format(row.attendees)}" oninput="handleNumberInput(this, ${row.id}, 'attendees')" class="text-center"></div></td>
             <td class="formula-col opacity-60 text-[7px] cvr-ast-wa">${row.wa_group > 0 ? (row.attendees/row.wa_group*100).toFixed(1)+'%' : '0%'}</td>
-            <td><input type="text" value="${format(row.trials)}" oninput="handleNumberInput(this, ${row.id}, 'trials')" class="w-10 text-center"></td>
+            <td><div class="w-16"><input type="text" value="${format(row.trials)}" oninput="handleNumberInput(this, ${row.id}, 'trials')" class="text-center"></div></td>
             <td class="formula-col opacity-60 text-[7px] cvr-wa-tr">${row.wa_group > 0 ? (row.trials/row.wa_group*100).toFixed(1)+'%' : '0%'}</td>
-            <td><input type="text" value="${format(row.nps)}" oninput="handleNumberInput(this, ${row.id}, 'nps')" class="w-10 text-indigo-600 font-bold text-center"></td>
-            <td class="formula-col text-[7px]"><input type="text" value="${format(row.projectedNps)}" oninput="handleNumberInput(this, ${row.id}, 'projectedNps')" class="w-10 text-center text-violet-600 font-bold"></td>
+            <td><div class="w-16"><input type="text" value="${format(row.nps)}" oninput="handleNumberInput(this, ${row.id}, 'nps')" class="text-indigo-600 font-bold text-center"></div></td>
+            <td class="formula-col text-[7px]"><div class="w-16"><input type="text" value="${format(row.projectedNps)}" oninput="handleNumberInput(this, ${row.id}, 'projectedNps')" class="text-center text-violet-600 font-bold"></div></td>
             <td class="text-[7px] text-center cell-delta">${renderDelta(row.nps, row.projectedNps)}</td>
             <td class="text-center"><input type="checkbox" ${row.confirmed ? 'checked' : ''} onchange="toggleConfirmed(${row.id}, this.checked)" class="w-3.5 h-3.5 accent-emerald-500 cursor-pointer" title="Marcar = usar NPs real en proyección"></td>
             <td class="formula-col opacity-60 text-[7px] cvr-np-tr">${row.trials > 0 ? (row.nps/row.trials*100).toFixed(1)+'%' : '0%'}</td>
