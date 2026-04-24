@@ -1919,15 +1919,13 @@ document.addEventListener('click', (e) => {
         const el = $(id);
         if (el && e.target === el) closeModal(id);
     });
-    const leverContainer = $('lever-dropdown-container');
     const leverPanel = $('lever-dropdown-panel');
-    if (leverPanel && !leverPanel.classList.contains('hidden') && leverContainer && !leverContainer.contains(e.target)) {
+    if (leverPanel && !leverPanel.classList.contains('hidden')) {
         leverPanel.classList.add('hidden');
         refreshViews();
     }
-    const affContainer = $('affiliate-dropdown-container');
     const affPanel = $('affiliate-dropdown-panel');
-    if (affPanel && !affPanel.classList.contains('hidden') && affContainer && !affContainer.contains(e.target)) {
+    if (affPanel && !affPanel.classList.contains('hidden')) {
         affPanel.classList.add('hidden');
         refreshViews();
     }
@@ -2252,6 +2250,11 @@ function init() {
         updateSyncIndicator('error');
         startFirebaseListener();
     });
+
+    const lc = $('lever-dropdown-container');
+    if (lc) lc.addEventListener('click', e => e.stopPropagation());
+    const ac = $('affiliate-dropdown-container');
+    if (ac) ac.addEventListener('click', e => e.stopPropagation());
 }
 
 window.onload = init;
