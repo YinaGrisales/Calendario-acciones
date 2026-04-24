@@ -876,10 +876,10 @@ function updateStats() {
     safeSet('stat-nps', mEvs.reduce((acc, e) => acc + (e.projectedNps || 0), 0));
 
     const qs = [
-        {id:'Q1', m:[0,1,2], cl:0, ct:0},
-        {id:'Q2', m:[3,4,5], cl:0, ct:0},
-        {id:'Q3', m:[6,7,8], cl:0, ct:0},
-        {id:'Q4', m:[9,10,11], cl:0, ct:0}
+        {id:'Q1', m:[0,1,2], cl:0, ct:0, nps:0},
+        {id:'Q2', m:[3,4,5], cl:0, ct:0, nps:0},
+        {id:'Q3', m:[6,7,8], cl:0, ct:0, nps:0},
+        {id:'Q4', m:[9,10,11], cl:0, ct:0, nps:0}
     ];
     gFil.forEach(e => {
         const m = new Date(e.date.replace(/-/g,'/')).getMonth();
@@ -887,6 +887,7 @@ function updateStats() {
         if (q) {
             if (e.type === 'clase') q.cl++;
             if (e.type === 'contenido') q.ct++;
+            q.nps += (e.projectedNps || 0);
         }
     });
 
@@ -895,6 +896,7 @@ function updateStats() {
             <p class="text-xs font-black text-indigo-500 uppercase tracking-wide">${q.id}</p>
             <span class="text-2xl font-black text-slate-800 mt-1">${q.cl + q.ct}</span>
             <span class="text-[10px] text-slate-400 font-medium mt-0.5">${q.cl} clases + ${q.ct} contenido</span>
+            <span class="text-[10px] text-indigo-500 font-bold mt-1">${q.nps} NPs</span>
         </div>`
     ).join(''));
 
