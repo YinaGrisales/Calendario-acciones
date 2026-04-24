@@ -1919,7 +1919,18 @@ document.addEventListener('click', (e) => {
         const el = $(id);
         if (el && e.target === el) closeModal(id);
     });
-    // Dropdowns de palanca y afiliado se cierran solo con el botón Aceptar
+    const leverContainer = $('lever-dropdown-container');
+    const leverPanel = $('lever-dropdown-panel');
+    if (leverPanel && !leverPanel.classList.contains('hidden') && leverContainer && !leverContainer.contains(e.target)) {
+        leverPanel.classList.add('hidden');
+        refreshViews();
+    }
+    const affContainer = $('affiliate-dropdown-container');
+    const affPanel = $('affiliate-dropdown-panel');
+    if (affPanel && !affPanel.classList.contains('hidden') && affContainer && !affContainer.contains(e.target)) {
+        affPanel.classList.add('hidden');
+        refreshViews();
+    }
 });
 
 // ── Backup / Restore ────────────────────────────────────────
