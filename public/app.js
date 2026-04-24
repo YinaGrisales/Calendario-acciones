@@ -873,6 +873,7 @@ function updateStats() {
 
     safeSet('stat-clases', mEvs.filter(e => e.type === 'clase').length);
     safeSet('stat-contenido', mEvs.filter(e => e.type === 'contenido').length);
+    safeSet('stat-nps', mEvs.reduce((acc, e) => acc + (e.projectedNps || 0), 0));
 
     const qs = [
         {id:'Q1', m:[0,1,2], cl:0, ct:0},
