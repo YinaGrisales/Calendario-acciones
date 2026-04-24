@@ -727,6 +727,9 @@ function renderLeverDropdown() {
         </div>`;
     });
 
+    html += `<div class="border-t border-slate-100 mt-1 pt-1">
+        <button onclick="applyLeverFilter()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-2 rounded-lg transition-colors">Aceptar</button>
+    </div>`;
     panel.innerHTML = html;
 
     if (currentLeverFilter.length === 0) {
@@ -748,11 +751,10 @@ function toggleLeverSelection(k) {
     const idx = currentLeverFilter.indexOf(k);
     if (idx === -1) currentLeverFilter.push(k);
     else currentLeverFilter.splice(idx, 1);
-    // Reset affiliate filter when lever changes
     currentAffiliateFilter = [];
     renderLeverDropdown();
     renderAffiliateDropdown();
-    refreshViews();
+    // no refreshViews — se aplica al hacer Aceptar
 }
 
 function selectAllLevers() {
@@ -760,6 +762,11 @@ function selectAllLevers() {
     currentAffiliateFilter = [];
     renderLeverDropdown();
     renderAffiliateDropdown();
+}
+
+function applyLeverFilter() {
+    const panel = $('lever-dropdown-panel');
+    if (panel) panel.classList.add('hidden');
     refreshViews();
 }
 
@@ -789,6 +796,9 @@ function renderAffiliateDropdown() {
         });
     });
 
+    html += `<div class="border-t border-slate-100 mt-1 pt-1">
+        <button onclick="applyAffiliateFilter()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-2 rounded-lg transition-colors">Aceptar</button>
+    </div>`;
     panel.innerHTML = html;
 
     if (currentAffiliateFilter.length === 0) {
@@ -811,12 +821,17 @@ function toggleAffiliateSelection(name) {
     if (idx === -1) currentAffiliateFilter.push(name);
     else currentAffiliateFilter.splice(idx, 1);
     renderAffiliateDropdown();
-    refreshViews();
+    // no refreshViews — se aplica al hacer Aceptar
 }
 
 function selectAllAffiliates() {
     currentAffiliateFilter = [];
     renderAffiliateDropdown();
+}
+
+function applyAffiliateFilter() {
+    const panel = $('affiliate-dropdown-panel');
+    if (panel) panel.classList.add('hidden');
     refreshViews();
 }
 
@@ -1838,18 +1853,7 @@ document.addEventListener('click', (e) => {
         const el = $(id);
         if (el && e.target === el) closeModal(id);
     });
-    // Close lever dropdown when clicking outside
-    const lContainer = $('lever-dropdown-container');
-    const lPanel = $('lever-dropdown-panel');
-    if (lPanel && !lPanel.classList.contains('hidden') && lContainer && !lContainer.contains(e.target)) {
-        lPanel.classList.add('hidden');
-    }
-    // Close affiliate dropdown when clicking outside
-    const container = $('affiliate-dropdown-container');
-    const panel = $('affiliate-dropdown-panel');
-    if (panel && !panel.classList.contains('hidden') && container && !container.contains(e.target)) {
-        panel.classList.add('hidden');
-    }
+    // Dropdowns de palanca y afiliado se cierran solo con el botón Aceptar
 });
 
 // ── Backup / Restore ────────────────────────────────────────
