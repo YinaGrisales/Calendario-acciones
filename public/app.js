@@ -715,8 +715,9 @@ function renderLeverDropdown() {
         <span class="text-[11px] font-bold text-slate-700">Todas las palancas</span>
     </div>`;
 
+    const allLevers = currentLeverFilter.length === 0;
     Object.entries(categories).forEach(([k, c]) => {
-        const checked = currentLeverFilter.includes(k);
+        const checked = allLevers || currentLeverFilter.includes(k);
         const clr = c.color || calLeverColors[k] || '#6366f1';
         html += `<div onclick="toggleLeverSelection('${k}')" class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors">
             <div class="w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 ${checked ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}">
@@ -748,13 +749,17 @@ function toggleLeverDropdown() {
 }
 
 function toggleLeverSelection(k) {
-    const idx = currentLeverFilter.indexOf(k);
-    if (idx === -1) currentLeverFilter.push(k);
-    else currentLeverFilter.splice(idx, 1);
+    if (currentLeverFilter.length === 0) {
+        currentLeverFilter = Object.keys(categories).filter(key => key !== k);
+    } else {
+        const idx = currentLeverFilter.indexOf(k);
+        if (idx === -1) currentLeverFilter.push(k);
+        else currentLeverFilter.splice(idx, 1);
+    }
+    if (currentLeverFilter.length === Object.keys(categories).length) currentLeverFilter = [];
     currentAffiliateFilter = [];
     renderLeverDropdown();
     renderAffiliateDropdown();
-    // no refreshViews — se aplica al hacer Aceptar
 }
 
 function selectAllLevers() {
@@ -782,11 +787,12 @@ function renderAffiliateDropdown() {
         <span class="text-[11px] font-bold text-slate-700">Todos los afiliados</span>
     </div>`;
 
+    const allAffiliates = currentAffiliateFilter.length === 0;
     Object.entries(categories).forEach(([k, c]) => {
         if (currentLeverFilter.length > 0 && !currentLeverFilter.includes(k)) return;
         html += `<p class="text-[8px] font-bold text-slate-400 uppercase tracking-wider px-2 pt-2 pb-0.5">${c.label}</p>`;
         c.members.forEach(m => {
-            const checked = currentAffiliateFilter.includes(m);
+            const checked = allAffiliates || currentAffiliateFilter.includes(m);
             html += `<div onclick="toggleAffiliateSelection('${m.replace(/'/g, "\\'")}')" class="flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors">
                 <div class="w-3.5 h-3.5 rounded border-2 flex items-center justify-center flex-shrink-0 ${checked ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}">
                     ${checked ? '<svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
@@ -817,11 +823,25 @@ function toggleAffiliateDropdown() {
 }
 
 function toggleAffiliateSelection(name) {
-    const idx = currentAffiliateFilter.indexOf(name);
-    if (idx === -1) currentAffiliateFilter.push(name);
-    else currentAffiliateFilter.splice(idx, 1);
+    if (currentAffiliateFilter.length === 0) {
+        const allMembers = [];
+        Object.entries(categories).forEach(([k, c]) => {
+            if (currentLeverFilter.length > 0 && !currentLeverFilter.includes(k)) return;
+            c.members.forEach(m => allMembers.push(m));
+        });
+        currentAffiliateFilter = allMembers.filter(m => m !== name);
+    } else {
+        const idx = currentAffiliateFilter.indexOf(name);
+        if (idx === -1) currentAffiliateFilter.push(name);
+        else currentAffiliateFilter.splice(idx, 1);
+    }
+    const allMembers = [];
+    Object.entries(categories).forEach(([k, c]) => {
+        if (currentLeverFilter.length > 0 && !currentLeverFilter.includes(k)) return;
+        c.members.forEach(m => allMembers.push(m));
+    });
+    if (currentAffiliateFilter.length === allMembers.length) currentAffiliateFilter = [];
     renderAffiliateDropdown();
-    // no refreshViews — se aplica al hacer Aceptar
 }
 
 function selectAllAffiliates() {
