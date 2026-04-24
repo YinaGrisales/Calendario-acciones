@@ -1490,8 +1490,8 @@ function renderResultsTable() {
             <td class="text-[7px] text-center cell-delta">${renderDelta(row.nps, row.projectedNps)}</td>
             <td class="text-center"><input type="checkbox" ${row.confirmed ? 'checked' : ''} onchange="toggleConfirmed(${row.id}, this.checked)" class="w-3.5 h-3.5 accent-emerald-500 cursor-pointer" title="Marcar = usar NPs real en proyección"></td>
             <td class="formula-col opacity-60 text-[7px] cvr-np-tr">${row.trials > 0 ? (row.nps/row.trials*100).toFixed(1)+'%' : '0%'}</td>
-            <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.fixed)}" oninput="handleNumberInput(this, ${row.id}, 'fixed')" class="w-20 input-money"></div></td>
-            <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.variable)}" oninput="handleNumberInput(this, ${row.id}, 'variable')" class="w-20 input-money"></div></td>
+            <td><div class="currency-input-wrapper w-24"><span class="currency-symbol">$</span><input type="text" value="${format(row.fixed)}" oninput="handleNumberInput(this, ${row.id}, 'fixed')" class="input-money"></div></td>
+            <td><div class="currency-input-wrapper w-24"><span class="currency-symbol">$</span><input type="text" value="${format(row.variable)}" oninput="handleNumberInput(this, ${row.id}, 'variable')" class="input-money"></div></td>
             <td class="text-[7px]">
                 <div class="flex flex-col items-center gap-0.5">
                     <select onchange="toggleCommission(${row.id}, this.value)" class="text-[7px] font-bold border-none bg-transparent p-0 text-center cursor-pointer outline-none ${row.hasCommission !== false ? 'text-emerald-600' : 'text-slate-300'}">
@@ -1501,7 +1501,7 @@ function renderResultsTable() {
                     <span class="cell-comis font-bold whitespace-nowrap text-[7px] ${row.hasCommission !== false ? 'money-col' : 'text-slate-300 line-through'}">${fmtCOP.format(comis)}</span>
                 </div>
             </td>
-            <td><div class="currency-input-wrapper"><span class="currency-symbol">$</span><input type="text" value="${format(row.pauta)}" oninput="handleNumberInput(this, ${row.id}, 'pauta')" class="w-20 input-money"></div></td>
+            <td><div class="currency-input-wrapper w-24"><span class="currency-symbol">$</span><input type="text" value="${format(row.pauta)}" oninput="handleNumberInput(this, ${row.id}, 'pauta')" class="input-money"></div></td>
             <td class="total-col text-[7px] whitespace-nowrap cell-total">${fmtCOP.format(total)}</td>
             <td class="formula-col text-[7px] whitespace-nowrap cell-cac-cop">${fmtCOP.format(cac)}</td>
             <td class="formula-col text-[7px] cell-cac-usd font-bold ${cacTextColor(cac / TRM)}">${fmtUSD.format(cac / TRM)}</td>
